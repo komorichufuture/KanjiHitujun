@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>漢字筆順アニメーション</title>
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Shippori+Mincho:wght@400;700&display=swap');
+
+  :root {
+    --ink: #1a1008;
+    --paper: #f5f0e8;
+    --paper-dark: #ede5d0;
+    --red: #c0392b;
+    --red-light: #e74c3c;
+    --gold: #b8860b;
+    --stroke: #2c1810;
+    --muted: #8a7a6a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--ink);
+    font-family: 'Noto Serif JP', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* 和紙テクスチャ背景 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.03) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.03) 40px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    width: 100%;
+    padding: 24px 40px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    z-index: 1;
+  }
+
+  .logo-mark {
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--red);
+    font-family: 'Shippori Mincho', serif;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px;
+    color: var(--paper);
+    font-weight: 400;
+    letter-spacing: 0.2em;
+  }
+
+  header h1 span {
+    color: var(--muted);
+    font-size: 13px;
+    display: block;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+  }
+
+  /* ファイル読込エリア */
+  #load-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    gap: 24px;
+  }
+
+  #load-screen h2 {
+    color: var(--paper);
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+  }
+
+  #load-screen p {
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  .file-btn {
+    display: inline-block;
+    padding: 14px 36px;
+    border: 1px solid var(--red);
+    color: var(--red);
+    background: transparent;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 15px;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .file-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--red);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+    z-index: -1;
+  }
+
+  .file-btn:hover { color: var(--paper); }
+  .file-btn:hover::before { transform: translateX(0); }
+
+  #file-input { display: none; }
+
+  /* メインUI */
+  #app {
+    display: none;
+    width: 100%;
+    max-width: 960px;
+    padding: 32px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 学年セレクター */
+  .grade-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .grade-btn {
+    padding: 8px 18px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--muted);
+    font-family: 'Noto Serif JP', serif;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .grade-btn:hover {
+    border-color: var(--red);
+    color: var(--paper);
+  }
+
+  .grade-btn.active {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--paper);
+  }
+
+  /* メインカード */
+  .main-card {
+    background: var(--paper);
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: 380px;
+  }
+
+  /* 左：漢字表示エリア */
+  .kanji-panel {
+    background: var(--paper-dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    border-right: 1px solid #d5c9b0;
+    position: relative;
+  }
+
+  /* 升目 */
+  .kanji-panel::before {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border: 1px solid #c5b89a;
+    background:
+      linear-gradient(#c5b89a 1px, transparent 1px),
+      linear-gradient(90deg, #c5b89a 1px, transparent 1px);
+    background-size: 100px 100px;
+    background-position: center center;
+  }
+
+  #kanji-writer {
+    position: relative;
+    z-index: 1;
+  }
+
+  .kanji-info {
+    margin-top: 20px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .kanji-info .reading {
+    font-size: 14px;
+    color: var(--stroke);
+    letter-spacing: 0.15em;
+    line-height: 1.8;
+  }
+
+  .kanji-info .reading span {
+    color: var(--red);
+    font-size: 11px;
+    margin-right: 4px;
+  }
+
+  .kanji-info .meaning {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* 右：漢字一覧 */
+  .list-panel {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  .list-panel h3 {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    font-weight: 400;
+    border-bottom: 1px solid #d5c9b0;
+    padding-bottom: 10px;
+  }
+
+  .kanji-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: 280px;
+    padding-right: 4px;
+  }
+
+  .kanji-grid::-webkit-scrollbar { width: 4px; }
+  .kanji-grid::-webkit-scrollbar-track { background: #e5dcc8; }
+  .kanji-grid::-webkit-scrollbar-thumb { background: #b8a990; }
+
+  .kanji-chip {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-family: 'Shippori Mincho', serif;
+    color: var(--stroke);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    background: rgba(255,255,255,0.5);
+  }
+
+  .kanji-chip:hover {
+    background: white;
+    border-color: var(--gold);
+    color: var(--red);
+  }
+
+  .kanji-chip.active {
+    background: var(--red);
+    color: white;
+    border-color: var(--red);
+  }
+
+  /* コントロールバー */
+  .controls {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .ctrl-btn {
+    padding: 10px 24px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .ctrl-btn:hover { background: var(--red); }
+
+  .ctrl-btn.outline {
+    background: transparent;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+  }
+
+  .ctrl-btn.outline:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .speed-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-left: auto;
+  }
+
+  .speed-select {
+    background: var(--paper-dark);
+    border: 1px solid #c5b89a;
+    padding: 8px 12px;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 12px;
+    color: var(--stroke);
+    cursor: pointer;
+  }
+
+  /* ナビゲーション */
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+  }
+
+  .nav-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--muted);
+    padding: 8px 20px;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .nav-btn:hover {
+    border-color: var(--red);
+    color: var(--paper);
+  }
+
+  .counter {
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  .counter strong {
+    color: var(--paper);
+    font-weight: 400;
+  }
+
+  @media (max-width: 640px) {
+    .main-card { grid-template-columns: 1fr; }
+    .kanji-panel { border-right: none; border-bottom: 1px solid #d5c9b0; }
+    .list-panel { max-height: 250px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ローディング画面 -->
+<div id="load-screen">
+  <div class="logo-mark">漢</div>
+  <h2>漢字筆順アニメーション</h2>
+  <p id="load-msg">データを読み込んでいます...</p>
+</div>
+
+<!-- メインアプリ -->
+<header>
+  <div class="logo-mark">漢</div>
+  <h1>漢字筆順アニメーション<span>Kanji Stroke Order</span></h1>
+</header>
+
+<div id="app">
+  <div class="grade-bar" id="grade-bar"></div>
+
+  <div class="main-card">
+    <!-- 左パネル：アニメーション -->
+    <div class="kanji-panel">
+      <div id="kanji-writer"></div>
+      <div class="kanji-info" id="kanji-info"></div>
+    </div>
+
+    <!-- 右パネル：一覧 -->
+    <div class="list-panel">
+      <h3 id="list-title">漢字一覧</h3>
+      <div class="kanji-grid" id="kanji-grid"></div>
+      <div class="controls">
+        <button class="ctrl-btn" onclick="playAnimation()">▶ 再生</button>
+        <button class="ctrl-btn outline" onclick="resetWriter()">リセット</button>
+        <span class="speed-label">速さ：</span>
+        <select class="speed-select" id="speed-select">
+          <option value="0.3">遅め</option>
+          <option value="0.6" selected>標準</option>
+          <option value="1.0">速め</option>
+          <option value="1.5">最速</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <button class="nav-btn" onclick="navigate(-1)">← 前の漢字</button>
+    <span class="counter" id="counter"></span>
+    <button class="nav-btn" onclick="navigate(1)">次の漢字 →</button>
+  </div>
+</div>
+
+<script>
+  let kanjiData = null;
+  let currentGrade = '1';
+  let currentIndex = 0;
+  let writer = null;
+
+  // JSONをfetchで読み込む
+  fetch('./kanji_learning_data.json')
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => {
+      kanjiData = data;
+      initApp();
+    })
+    .catch(err => {
+      document.getElementById('load-msg').textContent =
+        '❌ データの読み込みに失敗しました。kanji_learning_data.json が同じフォルダにあるか確認してください。';
+      console.error(err);
+    });
+
+  function initApp() {
+    document.getElementById('load-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    buildGradeBar();
+    loadGrade('1');
+  }
+
+  function buildGradeBar() {
+    const bar = document.getElementById('grade-bar');
+    const grades = Object.keys(kanjiData.grades);
+    const labels = {'1':'1年生','2':'2年生','3':'3年生','4':'4年生','5':'5年生','6':'6年生'};
+    bar.innerHTML = grades.map(g =>
+      `<button class="grade-btn ${g==='1'?'active':''}" onclick="loadGrade('${g}')" data-grade="${g}">
+        ${labels[g] || g+'年生'}
+      </button>`
+    ).join('');
+  }
+
+  function loadGrade(grade) {
+    currentGrade = grade;
+    currentIndex = 0;
+    // ボタン更新
+    document.querySelectorAll('.grade-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.grade === grade);
+    });
+    const list = kanjiData.grades[grade];
+    document.getElementById('list-title').textContent = `${grade}年生の漢字（${list.length}字）`;
+    buildGrid(list);
+    showKanji(0);
+  }
+
+  function buildGrid(list) {
+    const grid = document.getElementById('kanji-grid');
+    grid.innerHTML = list.map((item, i) =>
+      `<div class="kanji-chip ${i===0?'active':''}" onclick="showKanji(${i})" data-index="${i}" title="${item.kanji}">
+        ${item.kanji}
+      </div>`
+    ).join('');
+  }
+
+  function showKanji(index) {
+    const list = kanjiData.grades[currentGrade];
+    if (index < 0 || index >= list.length) return;
+    currentIndex = index;
+
+    // グリッド更新
+    document.querySelectorAll('.kanji-chip').forEach(c => {
+      c.classList.toggle('active', parseInt(c.dataset.index) === index);
+    });
+
+    // スクロールして見えるように
+    const activeChip = document.querySelector('.kanji-chip.active');
+    if (activeChip) activeChip.scrollIntoView({ block: 'nearest' });
+
+    const item = list[index];
+
+    // 読み方・意味表示
+    const onyomi  = item.onyomi.join('・') || '―';
+    const kunyomi = item.kunyomi.map(k => k.replace(/[-\.]/g, '')).join('・') || '―';
+    const meaning = item.meanings.slice(0, 3).join(', ') || '―';
+
+    document.getElementById('kanji-info').innerHTML = `
+      <div class="reading"><span>音</span>${onyomi}</div>
+      <div class="reading"><span>訓</span>${kunyomi}</div>
+      <div class="meaning">${meaning}</div>
+    `;
+
+    // カウンター
+    document.getElementById('counter').innerHTML =
+      `<strong>${index + 1}</strong> / ${list.length}`;
+
+    // Hanzi Writer 初期化
+    const container = document.getElementById('kanji-writer');
+    container.innerHTML = '';
+    const speed = parseFloat(document.getElementById('speed-select').value);
+
+    try {
+      writer = HanziWriter.create('kanji-writer', item.kanji, {
+        width: 200,
+        height: 200,
+        padding: 10,
+        strokeColor: '#2c1810',
+        radicalColor: '#c0392b',
+        strokeAnimationSpeed: speed,
+        delayBetweenStrokes: 300,
+        showCharacter: true,
+        showOutline: true,
+        outlineColor: '#c5b89a',
+      });
+      writer.animateCharacter();
+    } catch(e) {
+      container.innerHTML = `<div style="font-size:100px;font-family:'Shippori Mincho',serif;color:#2c1810;line-height:200px;width:200px;text-align:center">${item.kanji}</div>`;
+    }
+  }
+
+  function playAnimation() {
+    if (!writer) return;
+    const speed = parseFloat(document.getElementById('speed-select').value);
+    writer.updateColor('strokeColor', '#2c1810');
+    writer.animateCharacter({ strokeAnimationSpeed: speed });
+  }
+
+  function resetWriter() {
+    if (!writer) return;
+    writer.cancelAnimation();
+    writer.showCharacter();
+  }
+
+  function navigate(dir) {
+    const list = kanjiData.grades[currentGrade];
+    const next = currentIndex + dir;
+    if (next >= 0 && next < list.length) showKanji(next);
+  }
+
+  // キーボード操作
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') navigate(1);
+    if (e.key === 'ArrowLeft') navigate(-1);
+    if (e.key === ' ') { e.preventDefault(); playAnimation(); }
+  });
+</script>
+</body>
+</html>
