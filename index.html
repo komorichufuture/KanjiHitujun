@@ -3,596 +3,824 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>漢字筆順アニメーション</title>
-<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+<title>漢字書き順アニメーション</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Shippori+Mincho:wght@400;700&display=swap');
-
   :root {
-    --ink: #1a1008;
-    --paper: #f5f0e8;
-    --paper-dark: #ede5d0;
-    --red: #c0392b;
-    --red-light: #e74c3c;
-    --gold: #b8860b;
-    --stroke: #2c1810;
-    --muted: #8a7a6a;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    --radius: 14px;
+    --transition: 0.2s ease;
   }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--ink);
-    font-family: 'Noto Serif JP', serif;
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    overflow-x: hidden;
   }
-
-  /* 和紙テクスチャ背景 */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.03) 40px),
-      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.03) 40px);
-    pointer-events: none;
-    z-index: 0;
-  }
-
   header {
-    width: 100%;
-    padding: 24px 40px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    position: relative;
-    z-index: 1;
-  }
-
-  .logo-mark {
-    width: 44px;
-    height: 44px;
-    border: 2px solid var(--red);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: var(--red);
-    font-family: 'Shippori Mincho', serif;
-    flex-shrink: 0;
-  }
-
-  header h1 {
-    font-family: 'Shippori Mincho', serif;
-    font-size: 20px;
-    color: var(--paper);
-    font-weight: 400;
-    letter-spacing: 0.2em;
-  }
-
-  header h1 span {
-    color: var(--muted);
-    font-size: 13px;
-    display: block;
-    letter-spacing: 0.1em;
-    margin-top: 2px;
-  }
-
-  /* ファイル読込エリア */
-  #load-screen {
-    position: fixed;
-    inset: 0;
-    background: var(--ink);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    gap: 24px;
-  }
-
-  #load-screen h2 {
-    color: var(--paper);
-    font-family: 'Shippori Mincho', serif;
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: 0.2em;
-  }
-
-  #load-screen p {
-    color: var(--muted);
-    font-size: 14px;
-    letter-spacing: 0.1em;
-    text-align: center;
-    line-height: 1.8;
-  }
-
-  .file-btn {
-    display: inline-block;
-    padding: 14px 36px;
-    border: 1px solid var(--red);
-    color: var(--red);
-    background: transparent;
-    font-family: 'Noto Serif JP', serif;
-    font-size: 15px;
-    letter-spacing: 0.15em;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .file-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--red);
-    transform: translateX(-100%);
-    transition: transform 0.2s;
-    z-index: -1;
-  }
-
-  .file-btn:hover { color: var(--paper); }
-  .file-btn:hover::before { transform: translateX(0); }
-
-  #file-input { display: none; }
-
-  /* メインUI */
-  #app {
-    display: none;
-    width: 100%;
-    max-width: 960px;
-    padding: 32px 24px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* 学年セレクター */
-  .grade-bar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-  }
-
-  .grade-btn {
-    padding: 8px 18px;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.15);
-    color: var(--muted);
-    font-family: 'Noto Serif JP', serif;
-    font-size: 13px;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .grade-btn:hover {
-    border-color: var(--red);
-    color: var(--paper);
-  }
-
-  .grade-btn.active {
-    background: var(--red);
-    border-color: var(--red);
-    color: var(--paper);
-  }
-
-  /* メインカード */
-  .main-card {
-    background: var(--paper);
-    display: grid;
-    grid-template-columns: 340px 1fr;
-    min-height: 380px;
-  }
-
-  /* 左：漢字表示エリア */
-  .kanji-panel {
-    background: var(--paper-dark);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 32px;
-    border-right: 1px solid #d5c9b0;
-    position: relative;
-  }
-
-  /* 升目 */
-  .kanji-panel::before {
-    content: '';
-    position: absolute;
-    width: 200px;
-    height: 200px;
-    border: 1px solid #c5b89a;
-    background:
-      linear-gradient(#c5b89a 1px, transparent 1px),
-      linear-gradient(90deg, #c5b89a 1px, transparent 1px);
-    background-size: 100px 100px;
-    background-position: center center;
-  }
-
-  #kanji-writer {
-    position: relative;
-    z-index: 1;
-  }
-
-  .kanji-info {
-    margin-top: 20px;
-    text-align: center;
-    position: relative;
-    z-index: 1;
-  }
-
-  .kanji-info .reading {
-    font-size: 14px;
-    color: var(--stroke);
-    letter-spacing: 0.15em;
-    line-height: 1.8;
-  }
-
-  .kanji-info .reading span {
-    color: var(--red);
-    font-size: 11px;
-    margin-right: 4px;
-  }
-
-  .kanji-info .meaning {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 6px;
-    letter-spacing: 0.05em;
-  }
-
-  /* 右：漢字一覧 */
-  .list-panel {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    overflow: hidden;
-  }
-
-  .list-panel h3 {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 0.2em;
-    font-weight: 400;
-    border-bottom: 1px solid #d5c9b0;
-    padding-bottom: 10px;
-  }
-
-  .kanji-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    overflow-y: auto;
-    max-height: 280px;
-    padding-right: 4px;
-  }
-
-  .kanji-grid::-webkit-scrollbar { width: 4px; }
-  .kanji-grid::-webkit-scrollbar-track { background: #e5dcc8; }
-  .kanji-grid::-webkit-scrollbar-thumb { background: #b8a990; }
-
-  .kanji-chip {
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-family: 'Shippori Mincho', serif;
-    color: var(--stroke);
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-    background: rgba(255,255,255,0.5);
-  }
-
-  .kanji-chip:hover {
-    background: white;
-    border-color: var(--gold);
-    color: var(--red);
-  }
-
-  .kanji-chip.active {
-    background: var(--red);
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
     color: white;
-    border-color: var(--red);
-  }
-
-  /* コントロールバー */
-  .controls {
-    margin-top: 16px;
+    padding: 20px 28px 18px;
     display: flex;
-    gap: 10px;
     align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 12px rgba(37,99,235,0.25);
+  }
+  header .logo {
+    font-size: 36px;
+    line-height: 1;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  header .subtitle {
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 3px;
+    font-weight: 400;
+  }
+  .main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 78px);
+  }
+  /* Left panel: kanji list */
+  .sidebar {
+    width: 320px;
+    min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .search-box {
+    padding: 14px 14px 10px;
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-input-wrap {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .search-input-wrap:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  }
+  .search-input-wrap svg { color: var(--text-muted); flex-shrink: 0; }
+  .search-input {
+    border: none; outline: none; padding: 9px 0;
+    font-size: 14px; width: 100%;
+    background: transparent; color: var(--text);
+    font-family: inherit;
+  }
+  .grade-tabs {
+    display: flex;
+    gap: 4px;
     flex-wrap: wrap;
   }
-
-  .ctrl-btn {
-    padding: 10px 24px;
-    background: var(--ink);
-    color: var(--paper);
-    border: none;
-    font-family: 'Noto Serif JP', serif;
-    font-size: 13px;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .ctrl-btn:hover { background: var(--red); }
-
-  .ctrl-btn.outline {
-    background: transparent;
-    border: 1px solid var(--ink);
-    color: var(--ink);
-  }
-
-  .ctrl-btn.outline:hover {
-    background: var(--ink);
-    color: var(--paper);
-  }
-
-  .speed-label {
+  .grade-tab {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: white;
     font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    margin-left: auto;
-  }
-
-  .speed-select {
-    background: var(--paper-dark);
-    border: 1px solid #c5b89a;
-    padding: 8px 12px;
-    font-family: 'Noto Serif JP', serif;
-    font-size: 12px;
-    color: var(--stroke);
     cursor: pointer;
+    font-family: inherit;
+    transition: var(--transition);
+    color: var(--text-muted);
+    font-weight: 500;
   }
-
-  /* ナビゲーション */
-  .nav-row {
+  .grade-tab:hover { border-color: var(--primary); color: var(--primary); }
+  .grade-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+  .kanji-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: right;
+    padding: 4px 14px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .kanji-grid {
+    overflow-y: auto;
+    flex: 1;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 6px;
+    align-content: start;
+  }
+  .kanji-card {
+    aspect-ratio: 1;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: var(--transition);
+    background: white;
+    font-size: 22px;
+    position: relative;
+    user-select: none;
+  }
+  .kanji-card:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    transform: scale(1.05);
+  }
+  .kanji-card.selected {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+    transform: scale(1.08);
+  }
+  /* Right panel: animation */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px;
+    overflow-y: auto;
+    gap: 22px;
+    background: var(--bg);
+  }
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    gap: 12px;
+  }
+  .empty-state .big-kanji {
+    font-size: 96px;
+    opacity: 0.08;
+    line-height: 1;
+  }
+  .empty-state p { font-size: 15px; }
+  .kanji-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    justify-content: center;
+  }
+  .kanji-display {
+    font-size: 72px;
+    line-height: 1;
+    color: var(--text);
+  }
+  .grade-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+  .readings-box {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    width: 100%;
+    max-width: 700px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .reading-group { flex: 1; min-width: 120px; }
+  .reading-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    font-weight: 700;
+  }
+  .reading-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .reading-tag {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .reading-tag.onyomi { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+  .reading-tag.kunyomi { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+  .reading-tag.meaning { background: #fef9c3; border-color: #fde047; color: #854d0e; font-size: 12px; }
+
+  /* Animation canvas */
+  .animation-wrap {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 700px;
+  }
+  .animation-header {
+    display: flex;
+    width: 100%;
     justify-content: space-between;
     align-items: center;
-    margin-top: 16px;
   }
-
-  .nav-btn {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    color: var(--muted);
-    padding: 8px 20px;
-    font-family: 'Noto Serif JP', serif;
+  .animation-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stroke-counter {
     font-size: 13px;
-    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    background: #f1f5f9;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+  .svg-container {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .svg-container::before {
+    content: "";
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 1px; background: #f0f0f0;
+  }
+  .svg-container::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px; background: #f0f0f0;
+  }
+  #kanjiSvgDisplay {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    z-index: 1;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: var(--transition);
+    font-family: inherit;
   }
-
-  .nav-btn:hover {
-    border-color: var(--red);
-    color: var(--paper);
+  .btn-primary {
+    background: var(--primary);
+    color: white;
   }
-
-  .counter {
-    color: var(--muted);
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary {
+    background: white;
+    color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
-    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+  .speed-select {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    font-size: 13px;
+    font-family: inherit;
+    background: white;
+    cursor: pointer;
+    outline: none;
+  }
+  .speed-select:focus { border-color: var(--primary); }
+
+  /* Stroke progress */
+  .stroke-progress {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 400px;
+  }
+  .stroke-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: white;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-weight: 700;
+    transition: var(--transition);
+  }
+  .stroke-dot.done { background: var(--primary); border-color: var(--primary); color: white; }
+  .stroke-dot.current { background: var(--accent); border-color: var(--accent); color: white; animation: pulse 0.7s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.25); } }
+
+  .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-muted);
+    padding: 40px;
+    font-size: 14px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    color: #dc2626;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    text-align: center;
   }
 
-  .counter strong {
-    color: var(--paper);
-    font-weight: 400;
-  }
+  /* scrollbar */
+  .kanji-grid::-webkit-scrollbar { width: 5px; }
+  .kanji-grid::-webkit-scrollbar-track { background: transparent; }
+  .kanji-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .kanji-grid::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  @media (max-width: 640px) {
-    .main-card { grid-template-columns: 1fr; }
-    .kanji-panel { border-right: none; border-bottom: 1px solid #d5c9b0; }
-    .list-panel { max-height: 250px; }
+  /* Responsive */
+  @media (max-width: 700px) {
+    .main-layout { flex-direction: column; height: auto; }
+    .sidebar { width: 100%; height: 280px; border-right: none; border-bottom: 1px solid var(--border); }
+    .content { padding: 16px; }
+    header h1 { font-size: 17px; }
   }
 </style>
 </head>
 <body>
-
-<!-- ローディング画面 -->
-<div id="load-screen">
-  <div class="logo-mark">漢</div>
-  <h2>漢字筆順アニメーション</h2>
-  <p id="load-msg">データを読み込んでいます...</p>
-</div>
-
-<!-- メインアプリ -->
 <header>
-  <div class="logo-mark">漢</div>
-  <h1>漢字筆順アニメーション<span>Kanji Stroke Order</span></h1>
+  <div class="logo">漢</div>
+  <div>
+    <h1>漢字書き順アニメーション</h1>
+    <div class="subtitle">小学校学習漢字 1026字 — KanjiVG 書き順データ</div>
+  </div>
 </header>
 
-<div id="app">
-  <div class="grade-bar" id="grade-bar"></div>
-
-  <div class="main-card">
-    <!-- 左パネル：アニメーション -->
-    <div class="kanji-panel">
-      <div id="kanji-writer"></div>
-      <div class="kanji-info" id="kanji-info"></div>
-    </div>
-
-    <!-- 右パネル：一覧 -->
-    <div class="list-panel">
-      <h3 id="list-title">漢字一覧</h3>
-      <div class="kanji-grid" id="kanji-grid"></div>
-      <div class="controls">
-        <button class="ctrl-btn" onclick="playAnimation()">▶ 再生</button>
-        <button class="ctrl-btn outline" onclick="resetWriter()">リセット</button>
-        <span class="speed-label">速さ：</span>
-        <select class="speed-select" id="speed-select">
-          <option value="0.3">遅め</option>
-          <option value="0.6" selected>標準</option>
-          <option value="1.0">速め</option>
-          <option value="1.5">最速</option>
-        </select>
+<div class="main-layout">
+  <!-- Sidebar: kanji list -->
+  <div class="sidebar">
+    <div class="search-box">
+      <div class="search-input-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.44 1.29a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+        </svg>
+        <input class="search-input" id="searchInput" type="text" placeholder="漢字・意味で検索…" oninput="filterKanji()">
+      </div>
+      <div class="grade-tabs" id="gradeTabs">
+        <button class="grade-tab active" data-grade="0" onclick="selectGrade(0)">全て</button>
+        <button class="grade-tab" data-grade="1" onclick="selectGrade(1)">1年</button>
+        <button class="grade-tab" data-grade="2" onclick="selectGrade(2)">2年</button>
+        <button class="grade-tab" data-grade="3" onclick="selectGrade(3)">3年</button>
+        <button class="grade-tab" data-grade="4" onclick="selectGrade(4)">4年</button>
+        <button class="grade-tab" data-grade="5" onclick="selectGrade(5)">5年</button>
+        <button class="grade-tab" data-grade="6" onclick="selectGrade(6)">6年</button>
       </div>
     </div>
+    <div class="kanji-count" id="kanjiCount">1026 字</div>
+    <div class="kanji-grid" id="kanjiGrid"></div>
   </div>
 
-  <div class="nav-row">
-    <button class="nav-btn" onclick="navigate(-1)">← 前の漢字</button>
-    <span class="counter" id="counter"></span>
-    <button class="nav-btn" onclick="navigate(1)">次の漢字 →</button>
+  <!-- Content: animation -->
+  <div class="content" id="mainContent">
+    <div class="empty-state">
+      <div class="big-kanji">漢</div>
+      <p>左のリストから漢字を選んでください</p>
+      <p style="font-size:12px; margin-top:-4px;">クリックすると書き順アニメーションが始まります</p>
+    </div>
   </div>
 </div>
 
 <script>
-  let kanjiData = null;
-  let currentGrade = '1';
-  let currentIndex = 0;
-  let writer = null;
+// ===== DATA =====
+const KANJI_DATA = [{"k":"一","g":1,"on":["イチ","イツ"],"kun":["ひと-","ひと.つ"],"m":["one","one radical (no.1)"],"cp":"04e00"},{"k":"右","g":1,"on":["ウ","ユウ"],"kun":["みぎ"],"m":["right"],"cp":"053f3"},{"k":"雨","g":1,"on":["ウ"],"kun":["あめ","あま-","-さめ"],"m":["rain"],"cp":"096e8"},{"k":"円","g":1,"on":["エン"],"kun":["まる.い","まる","まど","まど.か","まろ.やか"],"m":["circle","yen","round"],"cp":"05186"},{"k":"王","g":1,"on":["オウ","-ノウ"],"kun":[],"m":["king","rule","magnate"],"cp":"0738b"},{"k":"音","g":1,"on":["オン","イン","-ノン"],"kun":["おと","ね"],"m":["sound","noise"],"cp":"097f3"},{"k":"下","g":1,"on":["カ","ゲ"],"kun":["した","しも","もと","さ.げる","さ.がる","くだ.る","くだ.り","くだ.す","-くだ.す","くだ.さる","お.ろす","お.りる"],"m":["below","down","descend","give","low","inferior"],"cp":"04e0b"},{"k":"火","g":1,"on":["カ"],"kun":["ひ","-び","ほ-"],"m":["fire"],"cp":"0706b"},{"k":"花","g":1,"on":["カ","ケ"],"kun":["はな"],"m":["flower"],"cp":"082b1"},{"k":"貝","g":1,"on":["バイ"],"kun":["かい"],"m":["shellfish"],"cp":"08c9d"},{"k":"学","g":1,"on":["ガク"],"kun":["まな.ぶ"],"m":["study","learning","science"],"cp":"05b66"},{"k":"気","g":1,"on":["キ","ケ"],"kun":["いき","き"],"m":["spirit","mind","air","atmosphere","mood"],"cp":"06c17"},{"k":"九","g":1,"on":["キュウ","ク"],"kun":["ここの","ここの.つ"],"m":["nine"],"cp":"04e5d"},{"k":"休","g":1,"on":["キュウ"],"kun":["やす.む","やす.まる","やす.める"],"m":["rest","day off","retire","sleep"],"cp":"04f11"},{"k":"玉","g":1,"on":["ギョク"],"kun":["たま","たま-","-だま"],"m":["jewel","ball"],"cp":"07389"},{"k":"金","g":1,"on":["キン","コン","ゴン"],"kun":["かね","かな-","-がね"],"m":["gold"],"cp":"091d1"},{"k":"空","g":1,"on":["クウ"],"kun":["そら","あ.く","あ.き","あ.ける","から","す.く","す.かす","むな.しい"],"m":["empty","sky","void","vacant","vacuum"],"cp":"07a7a"},{"k":"月","g":1,"on":["ゲツ","ガツ"],"kun":["つき"],"m":["month","moon"],"cp":"06708"},{"k":"犬","g":1,"on":["ケン"],"kun":["いぬ","いぬ-"],"m":["dog"],"cp":"072ac"},{"k":"見","g":1,"on":["ケン"],"kun":["み.る","み.える","み.せる"],"m":["see","hopes","chances","idea","opinion","look at","visible"],"cp":"0898b"},{"k":"五","g":1,"on":["ゴ"],"kun":["いつ","いつ.つ"],"m":["five"],"cp":"04e94"},{"k":"口","g":1,"on":["コウ","ク"],"kun":["くち"],"m":["mouth"],"cp":"053e3"},{"k":"校","g":1,"on":["コウ","キョウ"],"kun":[],"m":["exam","school","printing","proof","correction"],"cp":"06821"},{"k":"左","g":1,"on":["サ","シャ"],"kun":["ひだり"],"m":["left"],"cp":"05de6"},{"k":"三","g":1,"on":["サン","ゾウ"],"kun":["み","み.つ","みっ.つ"],"m":["three"],"cp":"04e09"},{"k":"山","g":1,"on":["サン","セン"],"kun":["やま"],"m":["mountain"],"cp":"05c71"},{"k":"子","g":1,"on":["シ","ス","ツ"],"kun":["こ","-こ","ね"],"m":["child","sign of the rat","11PM-1AM","first sign of Chinese zodiac"],"cp":"05b50"},{"k":"四","g":1,"on":["シ"],"kun":["よ","よ.つ","よっ.つ","よん"],"m":["four"],"cp":"056db"},{"k":"糸","g":1,"on":["シ"],"kun":["いと"],"m":["thread"],"cp":"07cf8"},{"k":"字","g":1,"on":["ジ"],"kun":["あざ","あざな","-な"],"m":["character","letter","word","section of village"],"cp":"05b57"},{"k":"耳","g":1,"on":["ジ"],"kun":["みみ"],"m":["ear"],"cp":"08033"},{"k":"七","g":1,"on":["シチ"],"kun":["なな","なな.つ","なの"],"m":["seven"],"cp":"04e03"},{"k":"車","g":1,"on":["シャ"],"kun":["くるま"],"m":["car"],"cp":"08eca"},{"k":"手","g":1,"on":["シュ","ズ"],"kun":["て","て-","-て","た-"],"m":["hand"],"cp":"0624b"},{"k":"十","g":1,"on":["ジュウ","ジッ","ジュッ"],"kun":["とお","と","そ"],"m":["ten"],"cp":"05341"},{"k":"出","g":1,"on":["シュツ","スイ"],"kun":["で.る","-で","だ.す","-だ.す","い.でる","い.だす"],"m":["exit","leave","go out","come out","put out","protrude"],"cp":"051fa"},{"k":"女","g":1,"on":["ジョ","ニョ","ニョウ"],"kun":["おんな","め"],"m":["woman","female"],"cp":"05973"},{"k":"小","g":1,"on":["ショウ"],"kun":["ちい.さい","こ-","お-","さ-"],"m":["little","small"],"cp":"05c0f"},{"k":"上","g":1,"on":["ジョウ","ショウ","シャン"],"kun":["うえ","-うえ","うわ-","かみ","あ.げる","-あ.げる","あ.がる","-あ.がる","あ.がり","-あ.がり","のぼ.る","のぼ.り","のぼ.せる","のぼ.す","たてまつ.る"],"m":["above","up"],"cp":"04e0a"},{"k":"森","g":1,"on":["シン"],"kun":["もり"],"m":["forest","woods"],"cp":"068ee"},{"k":"人","g":1,"on":["ジン","ニン"],"kun":["ひと","-り","-と"],"m":["person"],"cp":"04eba"},{"k":"水","g":1,"on":["スイ"],"kun":["みず","みず-"],"m":["water"],"cp":"06c34"},{"k":"正","g":1,"on":["セイ","ショウ"],"kun":["ただ.しい","ただ.す","まさ","まさ.に"],"m":["correct","justice","righteous","10**40"],"cp":"06b63"},{"k":"生","g":1,"on":["セイ","ショウ"],"kun":["い.きる","い.かす","い.ける","う.まれる","うま.れる","う.まれ","うまれ","う.む","お.う","は.える","は.やす","き","なま","なま-","な.る","な.す","む.す","-う"],"m":["life","genuine","birth"],"cp":"0751f"},{"k":"青","g":1,"on":["セイ","ショウ"],"kun":["あお","あお-","あお.い"],"m":["blue","green"],"cp":"09752"},{"k":"夕","g":1,"on":["セキ"],"kun":["ゆう"],"m":["evening"],"cp":"05915"},{"k":"石","g":1,"on":["セキ","シャク","コク"],"kun":["いし"],"m":["stone"],"cp":"077f3"},{"k":"赤","g":1,"on":["セキ","シャク"],"kun":["あか","あか-","あか.い","あか.らむ","あか.らめる"],"m":["red"],"cp":"08d64"},{"k":"千","g":1,"on":["セン"],"kun":["ち"],"m":["thousand"],"cp":"05343"},{"k":"川","g":1,"on":["セン"],"kun":["かわ"],"m":["stream","river","river or three-stroke river radical (no. 47)"],"cp":"05ddd"},{"k":"先","g":1,"on":["セン"],"kun":["さき","ま.ず"],"m":["before","ahead","previous","future","precedence"],"cp":"05148"},{"k":"早","g":1,"on":["ソウ","サッ"],"kun":["はや.い","はや","はや-","はや.まる","はや.める","さ-"],"m":["early","fast"],"cp":"065e9"},{"k":"草","g":1,"on":["ソウ"],"kun":["くさ","くさ-","-ぐさ"],"m":["grass","weeds","herbs","pasture","write","draft"],"cp":"08349"},{"k":"足","g":1,"on":["ソク"],"kun":["あし","た.りる","た.る","た.す"],"m":["leg","foot","be sufficient","counter for pairs of footwear"],"cp":"08db3"},{"k":"村","g":1,"on":["ソン"],"kun":["むら"],"m":["village","town"],"cp":"06751"},{"k":"大","g":1,"on":["ダイ","タイ"],"kun":["おお-","おお.きい","-おお.いに"],"m":["large","big"],"cp":"05927"},{"k":"男","g":1,"on":["ダン","ナン"],"kun":["おとこ","お"],"m":["male"],"cp":"07537"},{"k":"竹","g":1,"on":["チク"],"kun":["たけ"],"m":["bamboo"],"cp":"07af9"},{"k":"中","g":1,"on":["チュウ"],"kun":["なか","うち","あた.る"],"m":["in","inside","middle","mean","center"],"cp":"04e2d"},{"k":"虫","g":1,"on":["チュウ","キ"],"kun":["むし"],"m":["insect","bug","temper"],"cp":"0866b"},{"k":"町","g":1,"on":["チョウ"],"kun":["まち"],"m":["town","village","block","street"],"cp":"0753a"},{"k":"天","g":1,"on":["テン"],"kun":["あまつ","あめ","あま-"],"m":["heavens","sky","imperial"],"cp":"05929"},{"k":"田","g":1,"on":["デン"],"kun":["た"],"m":["rice field","rice paddy"],"cp":"07530"},{"k":"土","g":1,"on":["ド","ト"],"kun":["つち"],"m":["soil","earth","ground","Turkey"],"cp":"0571f"},{"k":"二","g":1,"on":["ニ","ジ"],"kun":["ふた","ふた.つ","ふたたび"],"m":["two","two radical (no. 7)"],"cp":"04e8c"},{"k":"日","g":1,"on":["ニチ","ジツ"],"kun":["ひ","-び","-か"],"m":["day","sun","Japan","counter for days"],"cp":"065e5"},{"k":"入","g":1,"on":["ニュウ","ジュ"],"kun":["い.る","-い.る","-い.り","い.れる","-い.れ","はい.る"],"m":["enter","insert"],"cp":"05165"},{"k":"年","g":1,"on":["ネン"],"kun":["とし"],"m":["year","counter for years"],"cp":"05e74"},{"k":"白","g":1,"on":["ハク","ビャク"],"kun":["しろ","しら-","しろ.い"],"m":["white"],"cp":"0767d"},{"k":"八","g":1,"on":["ハチ","ハツ"],"kun":["や","や.つ","やっ.つ","よう"],"m":["eight","eight radical (no. 12)"],"cp":"0516b"},{"k":"百","g":1,"on":["ヒャク","ビャク"],"kun":["もも"],"m":["hundred"],"cp":"0767e"},{"k":"文","g":1,"on":["ブン","モン"],"kun":["ふみ","あや"],"m":["sentence","literature","style","art","decoration","figures","plan","literary radical (no. 67)"],"cp":"06587"},{"k":"木","g":1,"on":["ボク","モク"],"kun":["き","こ-"],"m":["tree","wood"],"cp":"06728"},{"k":"本","g":1,"on":["ホン"],"kun":["もと"],"m":["book","present","main","origin","true","real","counter for long cylindrical things"],"cp":"0672c"},{"k":"名","g":1,"on":["メイ","ミョウ"],"kun":["な","-な"],"m":["name","noted","distinguished","reputation"],"cp":"0540d"},{"k":"目","g":1,"on":["モク","ボク"],"kun":["め","-め","ま-"],"m":["eye","class","look","insight","experience","care","favor"],"cp":"076ee"},{"k":"立","g":1,"on":["リツ","リュウ","リットル"],"kun":["た.つ","-た.つ","た.ち-","た.てる","-た.てる","た.て-","たて-","-た.て","-だ.て","-だ.てる"],"m":["stand up","rise","set up","erect"],"cp":"07acb"},{"k":"力","g":1,"on":["リョク","リキ","リイ"],"kun":["ちから"],"m":["power","strength","strong","strain","bear up","exert"],"cp":"0529b"},{"k":"林","g":1,"on":["リン"],"kun":["はやし"],"m":["grove","forest"],"cp":"06797"},{"k":"六","g":1,"on":["ロク","リク"],"kun":["む","む.つ","むっ.つ","むい"],"m":["six"],"cp":"0516d"},{"k":"引","g":2,"on":["イン"],"kun":["ひ.く","ひ.ける"],"m":["pull","tug","jerk","admit","install","quote","refer to"],"cp":"05f15"},{"k":"羽","g":2,"on":["ウ"],"kun":["は","わ","はね"],"m":["feathers","counter for birds, rabbits"],"cp":"07fbd"},{"k":"雲","g":2,"on":["ウン"],"kun":["くも","-ぐも"],"m":["cloud"],"cp":"096f2"},{"k":"園","g":2,"on":["エン"],"kun":["その"],"m":["park","garden","yard","farm"],"cp":"05712"},{"k":"遠","g":2,"on":["エン","オン"],"kun":["とお.い"],"m":["distant","far"],"cp":"09060"},{"k":"何","g":2,"on":["カ"],"kun":["なに","なん","なに-","なん-"],"m":["what"],"cp":"04f55"},{"k":"科","g":2,"on":["カ"],"kun":[],"m":["department","course","section"],"cp":"079d1"},{"k":"夏","g":2,"on":["カ","ガ","ゲ"],"kun":["なつ"],"m":["summer"],"cp":"0590f"},{"k":"家","g":2,"on":["カ","ケ"],"kun":["いえ","や","うち"],"m":["house","home","family","professional","expert","performer"],"cp":"05bb6"},{"k":"歌","g":2,"on":["カ"],"kun":["うた","うた.う"],"m":["song","sing"],"cp":"06b4c"},{"k":"画","g":2,"on":["ガ","カク","エ","カイ"],"kun":["えが.く","かく.する","かぎ.る","はかりごと","はか.る"],"m":["brush-stroke","picture"],"cp":"0753b"},{"k":"回","g":2,"on":["カイ","エ"],"kun":["まわ.る","-まわ.る","-まわ.り","まわ.す","-まわ.す","まわ.し-","-まわ.し","もとお.る","か.える"],"m":["-times","round","game","revolve","counter for occurrences"],"cp":"056de"},{"k":"会","g":2,"on":["カイ","エ"],"kun":["あ.う","あ.わせる","あつ.まる"],"m":["meeting","meet","party","association","interview","join"],"cp":"04f1a"},{"k":"海","g":2,"on":["カイ"],"kun":["うみ"],"m":["sea","ocean"],"cp":"06d77"},{"k":"絵","g":2,"on":["カイ","エ"],"kun":[],"m":["picture","drawing","painting","sketch"],"cp":"07d75"},{"k":"外","g":2,"on":["ガイ","ゲ"],"kun":["そと","ほか","はず.す","はず.れる","と-"],"m":["outside"],"cp":"05916"},{"k":"角","g":2,"on":["カク"],"kun":["かど","つの"],"m":["angle","corner","square","horn","antlers"],"cp":"089d2"},{"k":"楽","g":2,"on":["ガク","ラク","ゴウ"],"kun":["たの.しい","たの.しむ","この.む"],"m":["music","comfort","ease"],"cp":"0697d"},{"k":"活","g":2,"on":["カツ"],"kun":["い.きる","い.かす","い.ける"],"m":["lively","resuscitation","being helped","living"],"cp":"06d3b"},{"k":"間","g":2,"on":["カン","ケン"],"kun":["あいだ","ま","あい"],"m":["interval","space"],"cp":"09593"},{"k":"丸","g":2,"on":["ガン"],"kun":["まる","まる.める","まる.い"],"m":["round","full (month)","perfection","-ship","pills","make round","roll up","curl up","seduce","explain away"],"cp":"04e38"},{"k":"岩","g":2,"on":["ガン"],"kun":["いわ"],"m":["boulder","rock","cliff"],"cp":"05ca9"},{"k":"顔","g":2,"on":["ガン"],"kun":["かお"],"m":["face","expression"],"cp":"09854"},{"k":"汽","g":2,"on":["キ"],"kun":[],"m":["vapor","steam"],"cp":"06c7d"},{"k":"記","g":2,"on":["キ"],"kun":["しる.す"],"m":["scribe","account","narrative"],"cp":"08a18"},{"k":"帰","g":2,"on":["キ"],"kun":["かえ.る","かえ.す","おく.る","とつ.ぐ"],"m":["homecoming","arrive at","lead to","result in"],"cp":"05e30"},{"k":"弓","g":2,"on":["キュウ"],"kun":["ゆみ"],"m":["bow","bow (archery, violin)"],"cp":"05f13"},{"k":"牛","g":2,"on":["ギュウ"],"kun":["うし"],"m":["cow"],"cp":"0725b"},{"k":"魚","g":2,"on":["ギョ"],"kun":["うお","さかな","-ざかな"],"m":["fish"],"cp":"09b5a"},{"k":"京","g":2,"on":["キョウ","ケイ","キン"],"kun":["みやこ"],"m":["capital","10**16"],"cp":"04eac"},{"k":"強","g":2,"on":["キョウ","ゴウ"],"kun":["つよ.い","つよ.まる","つよ.める","し.いる","こわ.い"],"m":["strong"],"cp":"05f37"},{"k":"教","g":2,"on":["キョウ"],"kun":["おし.える","おそ.わる"],"m":["teach","faith","doctrine"],"cp":"06559"},{"k":"近","g":2,"on":["キン","コン"],"kun":["ちか.い"],"m":["near","early","akin","tantamount"],"cp":"08fd1"},{"k":"兄","g":2,"on":["ケイ","キョウ"],"kun":["あに"],"m":["elder brother","big brother"],"cp":"05144"},{"k":"形","g":2,"on":["ケイ","ギョウ"],"kun":["かた","-がた","かたち","なり"],"m":["shape","form","style"],"cp":"05f62"},{"k":"計","g":2,"on":["ケイ"],"kun":["はか.る","はか.らう"],"m":["plot","plan","scheme","measure"],"cp":"08a08"},{"k":"元","g":2,"on":["ゲン","ガン"],"kun":["もと"],"m":["beginning","former time","origin"],"cp":"05143"},{"k":"言","g":2,"on":["ゲン","ゴン"],"kun":["い.う","こと"],"m":["say","word"],"cp":"08a00"},{"k":"原","g":2,"on":["ゲン"],"kun":["はら"],"m":["meadow","original","primitive","field","plain","prairie","tundra","wilderness"],"cp":"0539f"},{"k":"戸","g":2,"on":["コ"],"kun":["と"],"m":["door","counter for houses","door radical (no. 63)"],"cp":"06238"},{"k":"古","g":2,"on":["コ"],"kun":["ふる.い","ふる-","-ふる.す"],"m":["old"],"cp":"053e4"},{"k":"午","g":2,"on":["ゴ"],"kun":["うま"],"m":["noon","sign of the horse","11AM-1PM","seventh sign of Chinese zodiac"],"cp":"05348"},{"k":"後","g":2,"on":["ゴ","コウ"],"kun":["のち","うし.ろ","うしろ","あと","おく.れる"],"m":["behind","back","later"],"cp":"05f8c"},{"k":"語","g":2,"on":["ゴ"],"kun":["かた.る","かた.らう"],"m":["word","speech","language"],"cp":"08a9e"},{"k":"工","g":2,"on":["コウ","ク","グ"],"kun":[],"m":["craft","construction","katakana e radical (no. 48)"],"cp":"05de5"},{"k":"公","g":2,"on":["コウ","ク"],"kun":["おおやけ"],"m":["public","prince","official","governmental"],"cp":"0516c"},{"k":"広","g":2,"on":["コウ"],"kun":["ひろ.い","ひろ.まる","ひろ.める","ひろ.がる","ひろ.げる"],"m":["wide","broad","spacious"],"cp":"05e83"},{"k":"交","g":2,"on":["コウ"],"kun":["まじ.わる","まじ.える","ま.じる","まじ.る","ま.ざる","ま.ぜる","-か.う","か.わす","かわ.す","こもごも"],"m":["mingle","mixing","association","coming & going"],"cp":"04ea4"},{"k":"光","g":2,"on":["コウ"],"kun":["ひか.る","ひかり"],"m":["ray","light"],"cp":"05149"},{"k":"考","g":2,"on":["コウ"],"kun":["かんが.える","かんが.え"],"m":["consider","think over"],"cp":"08003"},{"k":"行","g":2,"on":["コウ","ギョウ","アン"],"kun":["い.く","ゆ.く","-ゆ.き","-ゆき","-い.き","-いき","おこな.う","おこ.なう"],"m":["going","journey","carry out","conduct","act","line","row","bank"],"cp":"0884c"},{"k":"高","g":2,"on":["コウ"],"kun":["たか.い","たか","-だか","たか.まる","たか.める"],"m":["tall","high","expensive"],"cp":"09ad8"},{"k":"黄","g":2,"on":["コウ","オウ"],"kun":["き","こ-"],"m":["yellow"],"cp":"09ec4"},{"k":"合","g":2,"on":["ゴウ","ガッ","カッ"],"kun":["あ.う","-あ.う","あ.い","あい-","-あ.い","-あい","あ.わす","あ.わせる","-あ.わせる"],"m":["fit","suit","join","0.1"],"cp":"05408"},{"k":"谷","g":2,"on":["コク"],"kun":["たに","きわ.まる"],"m":["valley"],"cp":"08c37"},{"k":"国","g":2,"on":["コク"],"kun":["くに"],"m":["country"],"cp":"056fd"},{"k":"黒","g":2,"on":["コク"],"kun":["くろ","くろ.ずむ","くろ.い"],"m":["black"],"cp":"09ed2"},{"k":"今","g":2,"on":["コン","キン"],"kun":["いま"],"m":["now"],"cp":"04eca"},{"k":"才","g":2,"on":["サイ"],"kun":[],"m":["genius","years old","cubic shaku"],"cp":"0624d"},{"k":"細","g":2,"on":["サイ"],"kun":["ほそ.い","ほそ.る","こま.か","こま.かい"],"m":["dainty","get thin","taper","slender","narrow","detailed","precise"],"cp":"07d30"},{"k":"作","g":2,"on":["サク","サ"],"kun":["つく.る","つく.り","-づく.り"],"m":["make","production","prepare","build"],"cp":"04f5c"},{"k":"算","g":2,"on":["サン"],"kun":["そろ"],"m":["calculate","divining","number","abacus","probability"],"cp":"07b97"},{"k":"止","g":2,"on":["シ"],"kun":["と.まる","-ど.まり","と.める","-と.める","-ど.め","とど.める","とど.め","とど.まる","や.める","や.む","-や.む","よ.す","-さ.す","-さ.し"],"m":["stop","halt"],"cp":"06b62"},{"k":"市","g":2,"on":["シ"],"kun":["いち"],"m":["market","city","town"],"cp":"05e02"},{"k":"矢","g":2,"on":["シ"],"kun":["や"],"m":["dart","arrow"],"cp":"077e2"},{"k":"姉","g":2,"on":["シ"],"kun":["あね","はは"],"m":["elder sister"],"cp":"059c9"},{"k":"思","g":2,"on":["シ"],"kun":["おも.う","おもえら.く","おぼ.す"],"m":["think"],"cp":"0601d"},{"k":"紙","g":2,"on":["シ"],"kun":["かみ"],"m":["paper"],"cp":"07d19"},{"k":"寺","g":2,"on":["ジ"],"kun":["てら"],"m":["Buddhist temple"],"cp":"05bfa"},{"k":"自","g":2,"on":["ジ","シ"],"kun":["みずか.ら","おの.ずから","おの.ずと"],"m":["oneself"],"cp":"081ea"},{"k":"時","g":2,"on":["ジ"],"kun":["とき","-どき"],"m":["time","hour"],"cp":"06642"},{"k":"室","g":2,"on":["シツ"],"kun":["むろ"],"m":["room","apartment","chamber","greenhouse","cellar"],"cp":"05ba4"},{"k":"社","g":2,"on":["シャ"],"kun":["やしろ"],"m":["company","firm","office","association","shrine"],"cp":"0793e"},{"k":"弱","g":2,"on":["ジャク"],"kun":["よわ.い","よわ.る","よわ.まる","よわ.める"],"m":["weak","frail"],"cp":"05f31"},{"k":"首","g":2,"on":["シュ"],"kun":["くび"],"m":["neck","counter for songs and poems"],"cp":"09996"},{"k":"秋","g":2,"on":["シュウ"],"kun":["あき","とき"],"m":["autumn"],"cp":"079cb"},{"k":"週","g":2,"on":["シュウ"],"kun":[],"m":["week"],"cp":"09031"},{"k":"春","g":2,"on":["シュン"],"kun":["はる"],"m":["springtime","spring (season)"],"cp":"06625"},{"k":"書","g":2,"on":["ショ"],"kun":["か.く","-が.き","-がき"],"m":["write"],"cp":"066f8"},{"k":"少","g":2,"on":["ショウ"],"kun":["すく.ない","すこ.し"],"m":["few","little"],"cp":"05c11"},{"k":"場","g":2,"on":["ジョウ","チョウ"],"kun":["ば"],"m":["location","place"],"cp":"05834"},{"k":"色","g":2,"on":["ショク","シキ"],"kun":["いろ"],"m":["color"],"cp":"08272"},{"k":"食","g":2,"on":["ショク","ジキ"],"kun":["く.う","く.らう","た.べる","は.む"],"m":["eat","food"],"cp":"098df"},{"k":"心","g":2,"on":["シン"],"kun":["こころ","-ごころ"],"m":["heart","mind","spirit","heart radical (no. 61)"],"cp":"05fc3"},{"k":"新","g":2,"on":["シン"],"kun":["あたら.しい","あら.た","あら-","にい-"],"m":["new"],"cp":"065b0"},{"k":"親","g":2,"on":["シン"],"kun":["おや","おや-","した.しい","した.しむ"],"m":["parent","intimacy","relative","familiarity","dealer (cards)"],"cp":"089aa"},{"k":"図","g":2,"on":["ズ","ト"],"kun":["え","はか.る"],"m":["map","drawing","plan","extraordinary","audacious"],"cp":"056f3"},{"k":"数","g":2,"on":["スウ","ス","サク","ソク","シュ"],"kun":["かず","かぞ.える","しばしば","せ.める","わずらわ.しい"],"m":["number","strength","fate","law","figures"],"cp":"06570"},{"k":"西","g":2,"on":["セイ","サイ","ス"],"kun":["にし"],"m":["west","Spain"],"cp":"0897f"},{"k":"声","g":2,"on":["セイ","ショウ"],"kun":["こえ","こわ-"],"m":["voice"],"cp":"058f0"},{"k":"星","g":2,"on":["セイ","ショウ"],"kun":["ほし","-ぼし"],"m":["star","spot","dot","mark"],"cp":"0661f"},{"k":"晴","g":2,"on":["セイ"],"kun":["は.れる","は.れ","は.れ-","-ば.れ","は.らす"],"m":["clear up"],"cp":"06674"},{"k":"切","g":2,"on":["セツ","サイ"],"kun":["き.る","-き.る","き.り","-き.り","-ぎ.り","き.れる","-き.れる","き.れ","-き.れ","-ぎ.れ"],"m":["cut","cutoff","be sharp"],"cp":"05207"},{"k":"雪","g":2,"on":["セツ"],"kun":["ゆき"],"m":["snow"],"cp":"096ea"},{"k":"船","g":2,"on":["セン"],"kun":["ふね","ふな-"],"m":["ship","boat"],"cp":"08239"},{"k":"線","g":2,"on":["セン"],"kun":["すじ"],"m":["line","track"],"cp":"07dda"},{"k":"前","g":2,"on":["ゼン"],"kun":["まえ","-まえ"],"m":["in front","before"],"cp":"0524d"},{"k":"組","g":2,"on":["ソ"],"kun":["く.む","くみ","-ぐみ"],"m":["association","braid","plait","construct","assemble","unite","cooperate","grapple"],"cp":"07d44"},{"k":"走","g":2,"on":["ソウ"],"kun":["はし.る"],"m":["run"],"cp":"08d70"},{"k":"多","g":2,"on":["タ"],"kun":["おお.い","まさ.に","まさ.る"],"m":["many","frequent","much"],"cp":"0591a"},{"k":"太","g":2,"on":["タイ","タ"],"kun":["ふと.い","ふと.る"],"m":["plump","thick","big around"],"cp":"0592a"},{"k":"体","g":2,"on":["タイ","テイ"],"kun":["からだ","かたち"],"m":["body","substance","object","reality","counter for images"],"cp":"04f53"},{"k":"台","g":2,"on":["ダイ","タイ"],"kun":["うてな","われ","つかさ"],"m":["pedestal","a stand","counter for machines and vehicles"],"cp":"053f0"},{"k":"地","g":2,"on":["チ","ジ"],"kun":[],"m":["ground","earth"],"cp":"05730"},{"k":"池","g":2,"on":["チ"],"kun":["いけ"],"m":["pond","cistern","pool","reservoir"],"cp":"06c60"},{"k":"知","g":2,"on":["チ"],"kun":["し.る","し.らせる"],"m":["know","wisdom"],"cp":"077e5"},{"k":"茶","g":2,"on":["チャ","サ"],"kun":[],"m":["tea"],"cp":"08336"},{"k":"昼","g":2,"on":["チュウ"],"kun":["ひる"],"m":["daytime","noon"],"cp":"0663c"},{"k":"長","g":2,"on":["チョウ"],"kun":["なが.い","おさ"],"m":["long","leader","superior","senior"],"cp":"09577"},{"k":"鳥","g":2,"on":["チョウ"],"kun":["とり"],"m":["bird","chicken"],"cp":"09ce5"},{"k":"朝","g":2,"on":["チョウ"],"kun":["あさ"],"m":["morning","dynasty","regime","epoch","period","(North) Korea"],"cp":"0671d"},{"k":"直","g":2,"on":["チョク","ジキ","ジカ"],"kun":["ただ.ちに","なお.す","-なお.す","なお.る","なお.き","す.ぐ"],"m":["straightaway","honesty","frankness","fix","repair"],"cp":"076f4"},{"k":"通","g":2,"on":["ツウ","ツ"],"kun":["とお.る","とお.り","-とお.り","-どお.り","とお.す","とお.し","-どお.し","かよ.う"],"m":["traffic","pass through","avenue","commute","counter for letters, notes, documents, etc."],"cp":"0901a"},{"k":"弟","g":2,"on":["テイ","ダイ","デ"],"kun":["おとうと"],"m":["younger brother","faithful service to elders"],"cp":"05f1f"},{"k":"店","g":2,"on":["テン"],"kun":["みせ","たな"],"m":["store","shop"],"cp":"05e97"},{"k":"点","g":2,"on":["テン"],"kun":["つ.ける","つ.く","た.てる","さ.す","とぼ.す","とも.す","ぼち"],"m":["spot","point","mark","speck","decimal point"],"cp":"070b9"},{"k":"電","g":2,"on":["デン"],"kun":[],"m":["electricity"],"cp":"096fb"},{"k":"刀","g":2,"on":["トウ"],"kun":["かたな","そり"],"m":["sword","saber","knife"],"cp":"05200"},{"k":"冬","g":2,"on":["トウ"],"kun":["ふゆ"],"m":["winter"],"cp":"051ac"},{"k":"当","g":2,"on":["トウ"],"kun":["あ.たる","あ.たり","あ.てる","あ.て","まさ.に","まさ.にべし"],"m":["hit","right","appropriate","himself"],"cp":"05f53"},{"k":"東","g":2,"on":["トウ"],"kun":["ひがし"],"m":["east"],"cp":"06771"},{"k":"答","g":2,"on":["トウ"],"kun":["こた.える","こた.え"],"m":["solution","answer"],"cp":"07b54"},{"k":"頭","g":2,"on":["トウ","ズ","ト"],"kun":["あたま","かしら","-がしら","かぶり"],"m":["head","counter for large animals"],"cp":"0982d"},{"k":"同","g":2,"on":["ドウ"],"kun":["おな.じ"],"m":["same","agree","equal"],"cp":"0540c"},{"k":"道","g":2,"on":["ドウ","トウ"],"kun":["みち","いう"],"m":["road-way","street","district","journey","course","moral","teachings"],"cp":"09053"},{"k":"読","g":2,"on":["ドク","トク","トウ"],"kun":["よ.む","-よ.み"],"m":["read"],"cp":"08aad"},{"k":"内","g":2,"on":["ナイ","ダイ"],"kun":["うち"],"m":["inside","within","between","among","house","home"],"cp":"05185"},{"k":"南","g":2,"on":["ナン","ナ"],"kun":["みなみ"],"m":["south"],"cp":"05357"},{"k":"肉","g":2,"on":["ニク"],"kun":["しし"],"m":["meat"],"cp":"08089"},{"k":"馬","g":2,"on":["バ"],"kun":["うま","うま-","ま"],"m":["horse"],"cp":"099ac"},{"k":"売","g":2,"on":["バイ"],"kun":["う.る","う.れる"],"m":["sell"],"cp":"058f2"},{"k":"買","g":2,"on":["バイ"],"kun":["か.う"],"m":["buy"],"cp":"08cb7"},{"k":"麦","g":2,"on":["バク"],"kun":["むぎ"],"m":["barley","wheat"],"cp":"09ea6"},{"k":"半","g":2,"on":["ハン"],"kun":["なか.ば"],"m":["half","middle","odd number","semi-","part-"],"cp":"0534a"},{"k":"番","g":2,"on":["バン"],"kun":["つが.い"],"m":["turn","number in a series"],"cp":"0756a"},{"k":"父","g":2,"on":["フ"],"kun":["ちち"],"m":["father"],"cp":"07236"},{"k":"風","g":2,"on":["フウ","フ"],"kun":["かぜ","かざ-"],"m":["wind","air","style","manner"],"cp":"098a8"},{"k":"分","g":2,"on":["ブン","フン","ブ"],"kun":["わ.ける","わ.け","わ.かれる","わ.かる","わ.かつ"],"m":["part","minute of time","segment","share","degree","one's lot","duty","understand","know","rate","1%","chances","shaku/100"],"cp":"05206"},{"k":"聞","g":2,"on":["ブン","モン"],"kun":["き.く","き.こえる"],"m":["hear","ask","listen"],"cp":"0805e"},{"k":"米","g":2,"on":["ベイ","マイ","メエトル"],"kun":["こめ","よね"],"m":["rice","USA","metre"],"cp":"07c73"},{"k":"歩","g":2,"on":["ホ","ブ","フ"],"kun":["ある.く","あゆ.む"],"m":["walk","counter for steps"],"cp":"06b69"},{"k":"母","g":2,"on":["ボ"],"kun":["はは","も"],"m":["mother"],"cp":"06bcd"},{"k":"方","g":2,"on":["ホウ"],"kun":["かた","-かた","-がた"],"m":["direction","person","alternative"],"cp":"065b9"},{"k":"北","g":2,"on":["ホク"],"kun":["きた"],"m":["north"],"cp":"05317"},{"k":"毎","g":2,"on":["マイ"],"kun":["ごと","-ごと.に"],"m":["every"],"cp":"06bce"},{"k":"妹","g":2,"on":["マイ"],"kun":["いもうと"],"m":["younger sister"],"cp":"059b9"},{"k":"万","g":2,"on":["マン","バン"],"kun":["よろず"],"m":["ten thousand","10,000"],"cp":"04e07"},{"k":"明","g":2,"on":["メイ","ミョウ","ミン"],"kun":["あ.かり","あか.るい","あか.るむ","あか.らむ","あき.らか","あ.ける","-あ.け","あ.く","あ.くる","あ.かす"],"m":["bright","light"],"cp":"0660e"},{"k":"鳴","g":2,"on":["メイ"],"kun":["な.く","な.る","な.らす"],"m":["chirp","cry","bark","sound","ring","echo","honk"],"cp":"09cf4"},{"k":"毛","g":2,"on":["モウ"],"kun":["け"],"m":["fur","hair","feather","down"],"cp":"06bdb"},{"k":"門","g":2,"on":["モン"],"kun":["かど","と"],"m":["gate","counter for cannons"],"cp":"09580"},{"k":"夜","g":2,"on":["ヤ"],"kun":["よ","よる"],"m":["night","evening"],"cp":"0591c"},{"k":"野","g":2,"on":["ヤ","ショ"],"kun":["の","の-"],"m":["plains","field","rustic","civilian life"],"cp":"091ce"},{"k":"友","g":2,"on":["ユウ"],"kun":["とも"],"m":["friend"],"cp":"053cb"},{"k":"用","g":2,"on":["ヨウ"],"kun":["もち.いる"],"m":["utilize","business","service","use","employ"],"cp":"07528"},{"k":"曜","g":2,"on":["ヨウ"],"kun":[],"m":["weekday"],"cp":"066dc"},{"k":"来","g":2,"on":["ライ","タイ"],"kun":["く.る","きた.る","きた.す","き.たす","き.たる","き","こ"],"m":["come","due","next","cause","become"],"cp":"06765"},{"k":"里","g":2,"on":["リ"],"kun":["さと"],"m":["ri","village","parent's home","league"],"cp":"091cc"},{"k":"理","g":2,"on":["リ"],"kun":["ことわり"],"m":["logic","arrangement","reason","justice","truth"],"cp":"07406"},{"k":"話","g":2,"on":["ワ"],"kun":["はな.す","はなし"],"m":["tale","talk"],"cp":"08a71"},{"k":"悪","g":3,"on":["アク","オ"],"kun":["わる.い","わる-","あ.し","にく.い","-にく.い","ああ","いずくに","いずくんぞ","にく.む"],"m":["bad","vice","rascal","false","evil","wrong"],"cp":"060aa"},{"k":"安","g":3,"on":["アン"],"kun":["やす.い","やす.まる","やす","やす.らか"],"m":["relax","cheap","low","quiet","rested","contented","peaceful"],"cp":"05b89"},{"k":"暗","g":3,"on":["アン"],"kun":["くら.い","くら.む","くれ.る"],"m":["darkness","disappear","shade","informal","grow dark","be blinded"],"cp":"06697"},{"k":"医","g":3,"on":["イ"],"kun":["い.やす","い.する","くすし"],"m":["doctor","medicine"],"cp":"0533b"},{"k":"委","g":3,"on":["イ"],"kun":["ゆだ.ねる"],"m":["committee","entrust to","leave to","devote","discard"],"cp":"059d4"},{"k":"意","g":3,"on":["イ"],"kun":[],"m":["idea","mind","heart","taste","thought","desire","care","liking"],"cp":"0610f"},{"k":"育","g":3,"on":["イク"],"kun":["そだ.つ","そだ.ち","そだ.てる","はぐく.む"],"m":["bring up","grow up","raise","rear"],"cp":"080b2"},{"k":"員","g":3,"on":["イン"],"kun":[],"m":["employee","member","number","the one in charge"],"cp":"054e1"},{"k":"院","g":3,"on":["イン"],"kun":[],"m":["Inst.","institution","temple","mansion","school"],"cp":"09662"},{"k":"飲","g":3,"on":["イン","オン"],"kun":["の.む","-の.み"],"m":["drink","smoke","take"],"cp":"098f2"},{"k":"運","g":3,"on":["ウン"],"kun":["はこ.ぶ"],"m":["carry","luck","destiny","fate","lot","transport","progress","advance"],"cp":"0904b"},{"k":"泳","g":3,"on":["エイ"],"kun":["およ.ぐ"],"m":["swim"],"cp":"06cf3"},{"k":"駅","g":3,"on":["エキ"],"kun":[],"m":["station"],"cp":"099c5"},{"k":"央","g":3,"on":["オウ"],"kun":[],"m":["center","middle"],"cp":"0592e"},{"k":"横","g":3,"on":["オウ"],"kun":["よこ"],"m":["sideways","side","horizontal","width","woof","unreasonable","perverse"],"cp":"06a2a"},{"k":"屋","g":3,"on":["オク"],"kun":["や"],"m":["roof","house","shop","dealer","seller"],"cp":"05c4b"},{"k":"温","g":3,"on":["オン"],"kun":["あたた.か","あたた.かい","あたた.まる","あたた.める","ぬく"],"m":["warm"],"cp":"06e29"},{"k":"化","g":3,"on":["カ","ケ"],"kun":["ば.ける","ば.かす","ふ.ける","け.する"],"m":["change","take the form of","influence","enchant","delude","-ization"],"cp":"05316"},{"k":"荷","g":3,"on":["カ"],"kun":["に"],"m":["baggage","shoulder-pole load","bear (a burden)","shoulder (a gun)","load","cargo","freight"],"cp":"08377"},{"k":"界","g":3,"on":["カイ"],"kun":[],"m":["world","boundary"],"cp":"0754c"},{"k":"開","g":3,"on":["カイ"],"kun":["ひら.く","ひら.き","-びら.き","ひら.ける","あ.く","あ.ける"],"m":["open","unfold","unseal"],"cp":"0958b"},{"k":"階","g":3,"on":["カイ"],"kun":["きざはし"],"m":["storey","stair","counter for storeys of a building"],"cp":"0968e"},{"k":"寒","g":3,"on":["カン"],"kun":["さむ.い"],"m":["cold"],"cp":"05bd2"},{"k":"感","g":3,"on":["カン"],"kun":[],"m":["emotion","feeling","sensation"],"cp":"0611f"},{"k":"漢","g":3,"on":["カン"],"kun":[],"m":["Sino-","China"],"cp":"06f22"},{"k":"館","g":3,"on":["カン"],"kun":["やかた","たて"],"m":["building","mansion","large building","palace"],"cp":"09928"},{"k":"岸","g":3,"on":["ガン"],"kun":["きし"],"m":["beach"],"cp":"05cb8"},{"k":"起","g":3,"on":["キ"],"kun":["お.きる","お.こる","お.こす","おこ.す","た.つ"],"m":["rouse","wake up","get up"],"cp":"08d77"},{"k":"期","g":3,"on":["キ","ゴ"],"kun":[],"m":["period","time","date","term"],"cp":"0671f"},{"k":"客","g":3,"on":["キャク","カク"],"kun":[],"m":["guest","visitor","customer","client"],"cp":"05ba2"},{"k":"究","g":3,"on":["キュウ","ク"],"kun":["きわ.める"],"m":["research","study"],"cp":"07a76"},{"k":"急","g":3,"on":["キュウ"],"kun":["いそ.ぐ","いそ.ぎ","せ.く"],"m":["hurry","emergency","sudden","steep"],"cp":"06025"},{"k":"級","g":3,"on":["キュウ"],"kun":[],"m":["class","rank","grade"],"cp":"07d1a"},{"k":"宮","g":3,"on":["キュウ","グウ","ク","クウ"],"kun":["みや"],"m":["Shinto shrine","constellations","palace","princess"],"cp":"05bae"},{"k":"球","g":3,"on":["キュウ"],"kun":["たま"],"m":["ball","sphere"],"cp":"07403"},{"k":"去","g":3,"on":["キョ","コ"],"kun":["さ.る","-さ.る"],"m":["gone","past","quit","leave","elapse","eliminate","divorce"],"cp":"053bb"},{"k":"橋","g":3,"on":["キョウ"],"kun":["はし"],"m":["bridge"],"cp":"06a4b"},{"k":"業","g":3,"on":["ギョウ","ゴウ"],"kun":["わざ"],"m":["business","vocation","arts","performance"],"cp":"0696d"},{"k":"曲","g":3,"on":["キョク"],"kun":["ま.がる","ま.げる","くま"],"m":["bend","music","melody","composition","pleasure","injustice","fault","curve","crooked","perverse","lean"],"cp":"066f2"},{"k":"局","g":3,"on":["キョク"],"kun":["つぼね"],"m":["bureau","board","office","affair","conclusion","court lady","lady-in-waiting","her apartment"],"cp":"05c40"},{"k":"銀","g":3,"on":["ギン"],"kun":["しろがね"],"m":["silver"],"cp":"09280"},{"k":"区","g":3,"on":["ク","オウ","コウ"],"kun":[],"m":["ward","district"],"cp":"0533a"},{"k":"苦","g":3,"on":["ク"],"kun":["くる.しい","-ぐる.しい","くる.しむ","くる.しめる","にが.い","にが.る"],"m":["suffering","trial","worry","hardship","feel bitter","scowl"],"cp":"082e6"},{"k":"具","g":3,"on":["グ"],"kun":["そな.える","つぶさ.に"],"m":["tool","utensil","means","possess","ingredients","counter for armor, suits, sets of furniture"],"cp":"05177"},{"k":"君","g":3,"on":["クン"],"kun":["きみ","-ぎみ"],"m":["mister","you","ruler","male name suffix"],"cp":"0541b"},{"k":"係","g":3,"on":["ケイ"],"kun":["かか.る","かかり","-がかり","かか.わる"],"m":["person in charge","connection","duty","concern oneself"],"cp":"04fc2"},{"k":"軽","g":3,"on":["ケイ","キョウ","キン"],"kun":["かる.い","かろ.やか","かろ.んじる"],"m":["lightly","trifling","unimportant"],"cp":"08efd"},{"k":"血","g":3,"on":["ケツ"],"kun":["ち"],"m":["blood"],"cp":"08840"},{"k":"決","g":3,"on":["ケツ"],"kun":["き.める","-ぎ.め","き.まる","さ.く"],"m":["decide","fix","agree upon","appoint"],"cp":"06c7a"},{"k":"研","g":3,"on":["ケン"],"kun":["と.ぐ"],"m":["polish","study of","sharpen"],"cp":"07814"},{"k":"県","g":3,"on":["ケン"],"kun":["か.ける"],"m":["prefecture"],"cp":"0770c"},{"k":"庫","g":3,"on":["コ","ク"],"kun":["くら"],"m":["warehouse","storehouse"],"cp":"05eab"},{"k":"湖","g":3,"on":["コ"],"kun":["みずうみ"],"m":["lake"],"cp":"06e56"},{"k":"向","g":3,"on":["コウ"],"kun":["む.く","む.い","-む.き","む.ける","-む.け","む.かう","む.かい","む.こう","む.こう-","むこ","むか.い"],"m":["yonder","facing","beyond","confront","defy","tend toward","approach"],"cp":"05411"},{"k":"幸","g":3,"on":["コウ"],"kun":["さいわ.い","さち","しあわ.せ"],"m":["happiness","blessing","fortune"],"cp":"05e78"},{"k":"港","g":3,"on":["コウ"],"kun":["みなと"],"m":["harbor"],"cp":"06e2f"},{"k":"号","g":3,"on":["ゴウ"],"kun":["さけ.ぶ","よびな"],"m":["nickname","number","item","title","pseudonym","name","call"],"cp":"053f7"},{"k":"根","g":3,"on":["コン"],"kun":["ね","-ね"],"m":["root","radical","head (pimple)"],"cp":"06839"},{"k":"祭","g":3,"on":["サイ"],"kun":["まつ.る","まつ.り","まつり"],"m":["ritual","offer prayers","celebrate","deify","enshrine","worship"],"cp":"0796d"},{"k":"皿","g":3,"on":["ベイ"],"kun":["さら"],"m":["dish","a helping","plate"],"cp":"076bf"},{"k":"仕","g":3,"on":["シ","ジ"],"kun":["つか.える"],"m":["attend","doing","official","serve"],"cp":"04ed5"},{"k":"死","g":3,"on":["シ"],"kun":["し.ぬ","し.に-"],"m":["death","die"],"cp":"06b7b"},{"k":"使","g":3,"on":["シ"],"kun":["つか.う","つか.い","-つか.い","-づか.い"],"m":["use","send on a mission","order","messenger","envoy","ambassador","cause"],"cp":"04f7f"},{"k":"始","g":3,"on":["シ"],"kun":["はじ.める","-はじ.める","はじ.まる"],"m":["commence","begin"],"cp":"059cb"},{"k":"指","g":3,"on":["シ"],"kun":["ゆび","さ.す","-さ.し"],"m":["finger","point to","indicate","put into","play (chess)","measure (ruler)"],"cp":"06307"},{"k":"歯","g":3,"on":["シ"],"kun":["よわい","は","よわ.い","よわい.する"],"m":["tooth","cog"],"cp":"06b6f"},{"k":"詩","g":3,"on":["シ"],"kun":["うた"],"m":["poem","poetry"],"cp":"08a69"},{"k":"次","g":3,"on":["ジ","シ"],"kun":["つ.ぐ","つぎ"],"m":["next","order","sequence"],"cp":"06b21"},{"k":"事","g":3,"on":["ジ","ズ"],"kun":["こと","つか.う","つか.える"],"m":["matter","thing","fact","business","reason","possibly"],"cp":"04e8b"},{"k":"持","g":3,"on":["ジ"],"kun":["も.つ","-も.ち","も.てる"],"m":["hold","have"],"cp":"06301"},{"k":"式","g":3,"on":["シキ"],"kun":[],"m":["style","ceremony","rite","function","method","system","form","expression"],"cp":"05f0f"},{"k":"実","g":3,"on":["ジツ","シツ"],"kun":["み","みの.る","まこと","みの","みち.る"],"m":["reality","truth","seed","fruit","nut"],"cp":"05b9f"},{"k":"写","g":3,"on":["シャ","ジャ"],"kun":["うつ.す","うつ.る","うつ-","うつ.し"],"m":["copy","be photographed","describe"],"cp":"05199"},{"k":"者","g":3,"on":["シャ"],"kun":["もの"],"m":["someone","person"],"cp":"08005"},{"k":"主","g":3,"on":["シュ","ス","シュウ"],"kun":["ぬし","おも","あるじ"],"m":["lord","chief","master","main thing","principal"],"cp":"04e3b"},{"k":"守","g":3,"on":["シュ","ス"],"kun":["まも.る","まも.り","もり","-もり","かみ"],"m":["guard","protect","defend","obey"],"cp":"05b88"},{"k":"取","g":3,"on":["シュ"],"kun":["と.る","と.り","と.り-","とり","-ど.り"],"m":["take","fetch","take up"],"cp":"053d6"},{"k":"酒","g":3,"on":["シュ"],"kun":["さけ","さか-"],"m":["sake","alcohol"],"cp":"09152"},{"k":"受","g":3,"on":["ジュ"],"kun":["う.ける","-う.け","う.かる"],"m":["accept","undergo","answer (phone)","take","get","catch","receive"],"cp":"053d7"},{"k":"州","g":3,"on":["シュウ","ス"],"kun":["す"],"m":["state","province"],"cp":"05dde"},{"k":"拾","g":3,"on":["シュウ","ジュウ"],"kun":["ひろ.う"],"m":["pick up","gather","find","go on foot","ten"],"cp":"062fe"},{"k":"終","g":3,"on":["シュウ"],"kun":["お.わる","-お.わる","おわ.る","お.える","つい","つい.に"],"m":["end","finish"],"cp":"07d42"},{"k":"習","g":3,"on":["シュウ","ジュ"],"kun":["なら.う","なら.い"],"m":["learn"],"cp":"07fd2"},{"k":"集","g":3,"on":["シュウ"],"kun":["あつ.まる","あつ.める","つど.う"],"m":["gather","meet","congregate","swarm","flock"],"cp":"096c6"},{"k":"住","g":3,"on":["ジュウ","ヂュウ","チュウ"],"kun":["す.む","す.まう","-ず.まい"],"m":["dwell","reside","live","inhabit"],"cp":"04f4f"},{"k":"重","g":3,"on":["ジュウ","チョウ"],"kun":["え","おも.い","おも.り","おも.なう","かさ.ねる","かさ.なる","おも"],"m":["heavy","important","esteem","respect","heap up","pile up","nest of boxes","-fold"],"cp":"091cd"},{"k":"宿","g":3,"on":["シュク"],"kun":["やど","やど.る","やど.す"],"m":["inn","lodging","relay station","dwell","lodge","be pregnant","home","dwelling"],"cp":"05bbf"},{"k":"所","g":3,"on":["ショ"],"kun":["ところ","-ところ","どころ","とこ"],"m":["place","extent"],"cp":"06240"},{"k":"暑","g":3,"on":["ショ"],"kun":["あつ.い"],"m":["sultry","hot","summer heat"],"cp":"06691"},{"k":"助","g":3,"on":["ジョ"],"kun":["たす.ける","たす.かる","す.ける","すけ"],"m":["help","rescue","assist"],"cp":"052a9"},{"k":"昭","g":3,"on":["ショウ"],"kun":[],"m":["shining","bright"],"cp":"0662d"},{"k":"消","g":3,"on":["ショウ"],"kun":["き.える","け.す"],"m":["extinguish","blow out","turn off","neutralize","cancel"],"cp":"06d88"},{"k":"商","g":3,"on":["ショウ"],"kun":["あきな.う"],"m":["make a deal","selling","dealing in","merchant"],"cp":"05546"},{"k":"章","g":3,"on":["ショウ"],"kun":[],"m":["badge","chapter","composition","poem","design"],"cp":"07ae0"},{"k":"勝","g":3,"on":["ショウ"],"kun":["か.つ","-が.ち","まさ.る","すぐ.れる","かつ"],"m":["victory","win","prevail","excel"],"cp":"052dd"},{"k":"乗","g":3,"on":["ジョウ","ショウ"],"kun":["の.る","-の.り","の.せる"],"m":["ride","power","multiplication","record","counter for vehicles","board","mount","join"],"cp":"04e57"},{"k":"植","g":3,"on":["ショク"],"kun":["う.える","う.わる"],"m":["plant"],"cp":"0690d"},{"k":"申","g":3,"on":["シン"],"kun":["もう.す","もう.し-","さる"],"m":["have the honor to","sign of the monkey","3-5PM","ninth sign of Chinese zodiac"],"cp":"07533"},{"k":"身","g":3,"on":["シン"],"kun":["み"],"m":["somebody","person","one's station in life"],"cp":"08eab"},{"k":"神","g":3,"on":["シン","ジン"],"kun":["かみ","かん-","こう-"],"m":["gods","mind","soul"],"cp":"0795e"},{"k":"真","g":3,"on":["シン"],"kun":["ま","ま-","まこと"],"m":["true","reality","Buddhist sect"],"cp":"0771f"},{"k":"深","g":3,"on":["シン"],"kun":["ふか.い","-ぶか.い","ふか.まる","ふか.める","み-"],"m":["deep","heighten","intensify","strengthen"],"cp":"06df1"},{"k":"進","g":3,"on":["シン"],"kun":["すす.む","すす.める"],"m":["advance","proceed","progress","promote"],"cp":"09032"},{"k":"世","g":3,"on":["セイ","セ","ソウ"],"kun":["よ"],"m":["generation","world","society","public"],"cp":"04e16"},{"k":"整","g":3,"on":["セイ"],"kun":["ととの.える","ととの.う"],"m":["organize","arranging","tune","tone","meter","key (music)"],"cp":"06574"},{"k":"昔","g":3,"on":["セキ","シャク"],"kun":["むかし"],"m":["once upon a time","antiquity","old times"],"cp":"06614"},{"k":"全","g":3,"on":["ゼン"],"kun":["まった.く","すべ.て"],"m":["whole","entire","all","complete","fulfill"],"cp":"05168"},{"k":"相","g":3,"on":["ソウ","ショウ"],"kun":["あい-"],"m":["inter-","mutual","together","each other","minister of state","councillor","aspect","phase","physiognomy"],"cp":"076f8"},{"k":"送","g":3,"on":["ソウ"],"kun":["おく.る"],"m":["escort","send"],"cp":"09001"},{"k":"想","g":3,"on":["ソウ","ソ"],"kun":["おも.う"],"m":["idea","thought","conception","think"],"cp":"060f3"},{"k":"息","g":3,"on":["ソク"],"kun":["いき"],"m":["breath","respiration","son","interest (on money)","rest","coming to an end"],"cp":"0606f"},{"k":"速","g":3,"on":["ソク"],"kun":["はや.い","はや-","はや.める","すみ.やか"],"m":["quick","fast"],"cp":"0901f"},{"k":"族","g":3,"on":["ゾク"],"kun":[],"m":["tribe","family"],"cp":"065cf"},{"k":"他","g":3,"on":["タ"],"kun":["ほか"],"m":["other","another","the others"],"cp":"04ed6"},{"k":"打","g":3,"on":["ダ","ダース"],"kun":["う.つ","う.ち-","ぶ.つ"],"m":["strike","hit","knock","pound","dozen"],"cp":"06253"},{"k":"対","g":3,"on":["タイ","ツイ"],"kun":["あいて","こた.える","そろ.い","つれあ.い","なら.ぶ","むか.う"],"m":["vis-a-vis","opposite","even","equal","versus","anti-","compare"],"cp":"05bfe"},{"k":"待","g":3,"on":["タイ"],"kun":["ま.つ","-ま.ち"],"m":["wait","depend on"],"cp":"05f85"},{"k":"代","g":3,"on":["ダイ","タイ"],"kun":["か.わる","かわ.る","かわ.り","か.わり","-がわ.り","-が.わり","か.える","よ","しろ"],"m":["substitute","change","convert","replace","period","age","counter for decades of ages, eras, etc.","generation","charge","rate","fee"],"cp":"04ee3"},{"k":"第","g":3,"on":["ダイ","テイ"],"kun":[],"m":["No.","residence"],"cp":"07b2c"},{"k":"題","g":3,"on":["ダイ"],"kun":[],"m":["topic","subject"],"cp":"0984c"},{"k":"炭","g":3,"on":["タン"],"kun":["すみ"],"m":["charcoal","coal"],"cp":"070ad"},{"k":"短","g":3,"on":["タン"],"kun":["みじか.い"],"m":["short","brevity","fault","defect","weak point"],"cp":"077ed"},{"k":"談","g":3,"on":["ダン"],"kun":[],"m":["discuss","talk"],"cp":"08ac7"},{"k":"着","g":3,"on":["チャク","ジャク"],"kun":["き.る","き.せる","つ.く","つ.ける"],"m":["don","arrive","wear","counter for suits of clothing"],"cp":"07740"},{"k":"注","g":3,"on":["チュウ"],"kun":["そそ.ぐ","さ.す","つ.ぐ"],"m":["pour","irrigate","shed (tears)","flow into","concentrate on","notes","comment","annotate"],"cp":"06ce8"},{"k":"柱","g":3,"on":["チュウ"],"kun":["はしら"],"m":["pillar","post","cylinder","support"],"cp":"067f1"},{"k":"丁","g":3,"on":["チョウ","テイ","チン","トウ","チ"],"kun":["ひのと"],"m":["street","ward","town","counter for guns, tools, leaves or cakes of something","even number","4th calendar sign"],"cp":"04e01"},{"k":"帳","g":3,"on":["チョウ"],"kun":["とばり"],"m":["notebook","account book","album","curtain","veil","net","tent"],"cp":"05e33"},{"k":"調","g":3,"on":["チョウ"],"kun":["しら.べる","しら.べ","ととの.う","ととの.える"],"m":["tune","tone","meter","key (music)","writing style","prepare","exorcise","investigate","harmonize","mediate"],"cp":"08abf"},{"k":"追","g":3,"on":["ツイ"],"kun":["お.う"],"m":["chase","drive away","follow","pursue","meanwhile"],"cp":"08ffd"},{"k":"定","g":3,"on":["テイ","ジョウ"],"kun":["さだ.める","さだ.まる","さだ.か"],"m":["determine","fix","establish","decide"],"cp":"05b9a"},{"k":"庭","g":3,"on":["テイ"],"kun":["にわ"],"m":["courtyard","garden","yard"],"cp":"05ead"},{"k":"笛","g":3,"on":["テキ"],"kun":["ふえ"],"m":["flute","clarinet","pipe","whistle","bagpipe","piccolo"],"cp":"07b1b"},{"k":"鉄","g":3,"on":["テツ"],"kun":["くろがね"],"m":["iron"],"cp":"09244"},{"k":"転","g":3,"on":["テン"],"kun":["ころ.がる","ころ.げる","ころ.がす","ころ.ぶ","まろ.ぶ","うたた","うつ.る","くる.めく"],"m":["revolve","turn around","change"],"cp":"08ee2"},{"k":"都","g":3,"on":["ト","ツ"],"kun":["みやこ"],"m":["metropolis","capital","all","everything"],"cp":"090fd"},{"k":"度","g":3,"on":["ド","ト","タク"],"kun":["たび","-た.い"],"m":["degrees","occurrence","time","counter for occurrences","consider","attitude"],"cp":"05ea6"},{"k":"投","g":3,"on":["トウ"],"kun":["な.げる","-な.げ"],"m":["throw","discard","abandon","launch into","join","invest in","hurl","give up","sell at a loss"],"cp":"06295"},{"k":"豆","g":3,"on":["トウ","ズ"],"kun":["まめ","まめ-"],"m":["beans","pea","midget"],"cp":"08c46"},{"k":"島","g":3,"on":["トウ"],"kun":["しま"],"m":["island"],"cp":"05cf6"},{"k":"湯","g":3,"on":["トウ"],"kun":["ゆ"],"m":["hot water","bath","hot spring"],"cp":"06e6f"},{"k":"登","g":3,"on":["トウ","ト","ドウ","ショウ","チョウ"],"kun":["のぼ.る","あ.がる"],"m":["ascend","climb up"],"cp":"0767b"},{"k":"等","g":3,"on":["トウ"],"kun":["ひと.しい","など","-ら"],"m":["etc.","and so forth","class (first)","quality","equal","similar"],"cp":"07b49"},{"k":"動","g":3,"on":["ドウ"],"kun":["うご.く","うご.かす"],"m":["move","motion","change","confusion","shift","shake"],"cp":"052d5"},{"k":"童","g":3,"on":["ドウ"],"kun":["わらべ"],"m":["juvenile","child"],"cp":"07ae5"},{"k":"農","g":3,"on":["ノウ"],"kun":[],"m":["agriculture","farmers"],"cp":"08fb2"},{"k":"波","g":3,"on":["ハ"],"kun":["なみ"],"m":["waves","billows","Poland"],"cp":"06ce2"},{"k":"配","g":3,"on":["ハイ"],"kun":["くば.る"],"m":["distribute","spouse","exile","rationing"],"cp":"0914d"},{"k":"倍","g":3,"on":["バイ"],"kun":[],"m":["double","twice","times","fold"],"cp":"0500d"},{"k":"箱","g":3,"on":["ソウ"],"kun":["はこ"],"m":["box","chest","case","bin","railway car"],"cp":"07bb1"},{"k":"畑","g":3,"on":[],"kun":["はた","はたけ","-ばたけ"],"m":["farm","field","garden","one's specialty","(kokuji)"],"cp":"07551"},{"k":"発","g":3,"on":["ハツ","ホツ"],"kun":["た.つ","あば.く","おこ.る","つか.わす","はな.つ"],"m":["departure","discharge","publish","emit","start from","disclose","counter for gunshots"],"cp":"0767a"},{"k":"反","g":3,"on":["ハン","ホン","タン","ホ"],"kun":["そ.る","そ.らす","かえ.す","かえ.る","-かえ.る"],"m":["anti-"],"cp":"053cd"},{"k":"坂","g":3,"on":["ハン"],"kun":["さか"],"m":["slope","incline","hill"],"cp":"05742"},{"k":"板","g":3,"on":["ハン","バン"],"kun":["いた"],"m":["plank","board","plate","stage"],"cp":"0677f"},{"k":"皮","g":3,"on":["ヒ"],"kun":["かわ"],"m":["pelt","skin","hide","leather","skin radical (no. 107)"],"cp":"076ae"},{"k":"悲","g":3,"on":["ヒ"],"kun":["かな.しい","かな.しむ"],"m":["grieve","sad","deplore","regret"],"cp":"060b2"},{"k":"美","g":3,"on":["ビ","ミ"],"kun":["うつく.しい"],"m":["beauty","beautiful"],"cp":"07f8e"},{"k":"鼻","g":3,"on":["ビ"],"kun":["はな"],"m":["nose","snout"],"cp":"09f3b"},{"k":"筆","g":3,"on":["ヒツ"],"kun":["ふで"],"m":["writing brush","writing","painting brush","handwriting"],"cp":"07b46"},{"k":"氷","g":3,"on":["ヒョウ"],"kun":["こおり","ひ","こお.る"],"m":["icicle","ice","hail","freeze","congeal"],"cp":"06c37"},{"k":"表","g":3,"on":["ヒョウ"],"kun":["おもて","-おもて","あらわ.す","あらわ.れる","あら.わす"],"m":["surface","table","chart","diagram"],"cp":"08868"},{"k":"秒","g":3,"on":["ビョウ"],"kun":[],"m":["second (1/60 minute)"],"cp":"079d2"},{"k":"病","g":3,"on":["ビョウ","ヘイ"],"kun":["や.む","-や.み","やまい"],"m":["ill","sick"],"cp":"075c5"},{"k":"品","g":3,"on":["ヒン","ホン"],"kun":["しな"],"m":["goods","refinement","dignity","article","counter for meal courses"],"cp":"054c1"},{"k":"負","g":3,"on":["フ"],"kun":["ま.ける","ま.かす","お.う"],"m":["defeat","negative","-","minus","bear","owe","assume a responsibility"],"cp":"08ca0"},{"k":"部","g":3,"on":["ブ"],"kun":["-べ"],"m":["section","bureau","dept","class","copy","part","portion","counter for copies of a newspaper or magazine"],"cp":"090e8"},{"k":"服","g":3,"on":["フク"],"kun":[],"m":["clothing","admit","obey","discharge"],"cp":"0670d"},{"k":"福","g":3,"on":["フク"],"kun":[],"m":["blessing","fortune","luck","wealth"],"cp":"0798f"},{"k":"物","g":3,"on":["ブツ","モツ"],"kun":["もの","もの-"],"m":["thing","object","matter"],"cp":"07269"},{"k":"平","g":3,"on":["ヘイ","ビョウ","ヒョウ"],"kun":["たい.ら","たい.らげる","ひら"],"m":["even","flat","peace"],"cp":"05e73"},{"k":"返","g":3,"on":["ヘン"],"kun":["かえ.す","-かえ.す","かえ.る","-かえ.る"],"m":["return","answer","fade","repay"],"cp":"08fd4"},{"k":"勉","g":3,"on":["ベン"],"kun":["つと.める"],"m":["exertion","endeavour","encourage","strive","make effort","diligent"],"cp":"052c9"},{"k":"放","g":3,"on":["ホウ"],"kun":["はな.す","-っぱな.し","はな.つ","はな.れる","こ.く","ほう.る"],"m":["set free","release","fire","shoot","emit","banish","liberate"],"cp":"0653e"},{"k":"味","g":3,"on":["ミ"],"kun":["あじ","あじ.わう"],"m":["flavor","taste"],"cp":"05473"},{"k":"命","g":3,"on":["メイ","ミョウ"],"kun":["いのち"],"m":["fate","command","decree","destiny","life","appoint"],"cp":"0547d"},{"k":"面","g":3,"on":["メン","ベン"],"kun":["おも","おもて","つら"],"m":["mask","face","features","surface"],"cp":"09762"},{"k":"問","g":3,"on":["モン"],"kun":["と.う","と.い","とん"],"m":["question","ask","problem"],"cp":"0554f"},{"k":"役","g":3,"on":["ヤク","エキ"],"kun":[],"m":["duty","war","campaign","drafted labor","office","service","role"],"cp":"05f79"},{"k":"薬","g":3,"on":["ヤク"],"kun":["くすり"],"m":["medicine","chemical","enamel","gunpowder","benefit"],"cp":"085ac"},{"k":"由","g":3,"on":["ユ","ユウ","ユイ"],"kun":["よし","よ.る"],"m":["wherefore","a reason"],"cp":"07531"},{"k":"油","g":3,"on":["ユ","ユウ"],"kun":["あぶら"],"m":["oil","fat"],"cp":"06cb9"},{"k":"有","g":3,"on":["ユウ","ウ"],"kun":["あ.る"],"m":["possess","have","exist","happen","occur","approx"],"cp":"06709"},{"k":"遊","g":3,"on":["ユウ","ユ"],"kun":["あそ.ぶ","あそ.ばす"],"m":["play"],"cp":"0904a"},{"k":"予","g":3,"on":["ヨ","シャ"],"kun":["あらかじ.め"],"m":["beforehand","previous","myself","I"],"cp":"04e88"},{"k":"羊","g":3,"on":["ヨウ"],"kun":["ひつじ"],"m":["sheep"],"cp":"07f8a"},{"k":"洋","g":3,"on":["ヨウ"],"kun":[],"m":["ocean","sea","foreign","Western style"],"cp":"06d0b"},{"k":"葉","g":3,"on":["ヨウ"],"kun":["は"],"m":["leaf","plane","lobe","needle","blade","spear","counter for flat things","fragment","piece"],"cp":"08449"},{"k":"陽","g":3,"on":["ヨウ"],"kun":["ひ"],"m":["sunshine","yang principle","positive","male","heaven","daytime"],"cp":"0967d"},{"k":"様","g":3,"on":["ヨウ","ショウ"],"kun":["さま","さん"],"m":["Esq.","way","manner","situation","polite suffix"],"cp":"069d8"},{"k":"落","g":3,"on":["ラク"],"kun":["お.ちる","お.ち","お.とす"],"m":["fall","drop","come down","village","hamlet"],"cp":"0843d"},{"k":"流","g":3,"on":["リュウ","ル"],"kun":["なが.れる","なが.れ","なが.す","-なが.す"],"m":["current","a sink","flow","forfeit"],"cp":"06d41"},{"k":"旅","g":3,"on":["リョ"],"kun":["たび"],"m":["trip","travel"],"cp":"065c5"},{"k":"両","g":3,"on":["リョウ"],"kun":["てる","ふたつ"],"m":["both","old Japanese coin","counter for carriages (e.g., in a train)","two"],"cp":"04e21"},{"k":"緑","g":3,"on":["リョク","ロク"],"kun":["みどり"],"m":["green"],"cp":"07dd1"},{"k":"礼","g":3,"on":["レイ","ライ"],"kun":[],"m":["salute","bow","ceremony","thanks","remuneration"],"cp":"0793c"},{"k":"列","g":3,"on":["レツ","レ"],"kun":[],"m":["file","row","rank","tier","column"],"cp":"05217"},{"k":"練","g":3,"on":["レン"],"kun":["ね.る","ね.り"],"m":["practice","gloss","train","drill","polish","refine"],"cp":"07df4"},{"k":"路","g":3,"on":["ロ","ル"],"kun":["-じ","みち"],"m":["path","route","road","distance"],"cp":"08def"},{"k":"和","g":3,"on":["ワ","オ","カ"],"kun":["やわ.らぐ","やわ.らげる","なご.む","なご.やか","あ.える"],"m":["harmony","Japanese style","peace","soften","Japan"],"cp":"0548c"},{"k":"愛","g":4,"on":["アイ"],"kun":["いと.しい","かな.しい","め.でる","お.しむ","まな"],"m":["love","affection","favourite"],"cp":"0611b"},{"k":"案","g":4,"on":["アン"],"kun":["つくえ"],"m":["plan","suggestion","draft","ponder","fear","proposition","idea","expectation","worry","table","bench"],"cp":"06848"},{"k":"以","g":4,"on":["イ"],"kun":["もっ.て"],"m":["by means of","because","in view of","compared with"],"cp":"04ee5"},{"k":"衣","g":4,"on":["イ","エ"],"kun":["ころも","きぬ","-ぎ"],"m":["garment","clothes","dressing"],"cp":"08863"},{"k":"位","g":4,"on":["イ"],"kun":["くらい","ぐらい"],"m":["rank","grade","throne","crown","about","some"],"cp":"04f4d"},{"k":"茨","g":4,"on":["シ","ジ"],"kun":["いばら","かや","くさぶき"],"m":["briar","thorn"],"cp":"08328"},{"k":"印","g":4,"on":["イン"],"kun":["しるし","-じるし","しる.す"],"m":["stamp","seal","mark","imprint","symbol","emblem","trademark","evidence","souvenir","India"],"cp":"05370"},{"k":"英","g":4,"on":["エイ"],"kun":["はなぶさ"],"m":["England","English","hero","outstanding","calyx"],"cp":"082f1"},{"k":"栄","g":4,"on":["エイ","ヨウ"],"kun":["さか.える","は.え","-ば.え","は.える","え"],"m":["flourish","prosperity","honor","glory","splendor"],"cp":"06804"},{"k":"媛","g":4,"on":["エン"],"kun":["ひめ"],"m":["beautiful woman","princess"],"cp":"05a9b"},{"k":"塩","g":4,"on":["エン"],"kun":["しお"],"m":["salt"],"cp":"05869"},{"k":"岡","g":4,"on":["コウ"],"kun":["おか"],"m":["mount","hill","knoll"],"cp":"05ca1"},{"k":"億","g":4,"on":["オク"],"kun":[],"m":["hundred million","10**8"],"cp":"05104"},{"k":"加","g":4,"on":["カ"],"kun":["くわ.える","くわ.わる"],"m":["add","addition","increase","join","include","Canada"],"cp":"052a0"},{"k":"果","g":4,"on":["カ"],"kun":["は.たす","はた.す","-は.たす","は.てる","-は.てる","は.て"],"m":["fruit","reward","carry out","achieve","complete","end","finish","succeed"],"cp":"0679c"},{"k":"貨","g":4,"on":["カ"],"kun":["たから"],"m":["freight","goods","property"],"cp":"08ca8"},{"k":"課","g":4,"on":["カ"],"kun":[],"m":["chapter","lesson","section","department","division","counter for chapters (of a book)"],"cp":"08ab2"},{"k":"芽","g":4,"on":["ガ"],"kun":["め"],"m":["bud","sprout","spear","germ"],"cp":"082bd"},{"k":"賀","g":4,"on":["ガ"],"kun":[],"m":["congratulations","joy"],"cp":"08cc0"},{"k":"改","g":4,"on":["カイ"],"kun":["あらた.める","あらた.まる"],"m":["reformation","change","modify","mend","renew","examine","inspect","search"],"cp":"06539"},{"k":"械","g":4,"on":["カイ"],"kun":["かせ"],"m":["contraption","fetter","machine","instrument"],"cp":"068b0"},{"k":"害","g":4,"on":["ガイ"],"kun":[],"m":["harm","injury"],"cp":"05bb3"},{"k":"街","g":4,"on":["ガイ","カイ"],"kun":["まち"],"m":["boulevard","street","town"],"cp":"08857"},{"k":"各","g":4,"on":["カク"],"kun":["おのおの"],"m":["each","every","either"],"cp":"05404"},{"k":"覚","g":4,"on":["カク"],"kun":["おぼ.える","さ.ます","さ.める","さと.る"],"m":["memorize","learn","remember","awake","sober up"],"cp":"0899a"},{"k":"潟","g":4,"on":["セキ"],"kun":["かた","-がた"],"m":["lagoon"],"cp":"06f5f"},{"k":"完","g":4,"on":["カン"],"kun":[],"m":["perfect","completion","end"],"cp":"05b8c"},{"k":"官","g":4,"on":["カン"],"kun":[],"m":["bureaucrat","the government","organ"],"cp":"05b98"},{"k":"管","g":4,"on":["カン"],"kun":["くだ"],"m":["pipe","tube","wind instrument","drunken talk","control","jurisdiction"],"cp":"07ba1"},{"k":"関","g":4,"on":["カン"],"kun":["せき","-ぜき","かか.わる","からくり","かんぬき"],"m":["connection","barrier","gateway","involve","concerning"],"cp":"095a2"},{"k":"観","g":4,"on":["カン"],"kun":["み.る","しめ.す"],"m":["outlook","look","appearance","condition","view"],"cp":"089b3"},{"k":"願","g":4,"on":["ガン"],"kun":["ねが.う","-ねがい"],"m":["petition","request","vow","wish","hope"],"cp":"09858"},{"k":"岐","g":4,"on":["キ","ギ"],"kun":[],"m":["branch off","fork in road","scene","arena","theater"],"cp":"05c90"},{"k":"希","g":4,"on":["キ","ケ"],"kun":["まれ","こいねが.う"],"m":["hope","beg","request","pray","beseech","Greece","dilute (acid)","rare","few","phenomenal"],"cp":"05e0c"},{"k":"季","g":4,"on":["キ"],"kun":[],"m":["seasons"],"cp":"05b63"},{"k":"旗","g":4,"on":["キ"],"kun":["はた"],"m":["national flag","banner","standard"],"cp":"065d7"},{"k":"器","g":4,"on":["キ"],"kun":["うつわ"],"m":["utensil","vessel","receptacle","implement","instrument","ability","container","tool","set"],"cp":"05668"},{"k":"機","g":4,"on":["キ"],"kun":["はた"],"m":["loom","mechanism","machine","airplane","opportunity","potency","efficacy","occasion"],"cp":"06a5f"},{"k":"議","g":4,"on":["ギ"],"kun":[],"m":["deliberation","consultation","debate","consideration"],"cp":"08b70"},{"k":"求","g":4,"on":["キュウ","グ"],"kun":["もと.める"],"m":["request","want","wish for","require","demand"],"cp":"06c42"},{"k":"泣","g":4,"on":["キュウ"],"kun":["な.く"],"m":["cry","weep","moan"],"cp":"06ce3"},{"k":"給","g":4,"on":["キュウ"],"kun":["たま.う","たも.う","-たま.え"],"m":["salary","wage","gift","allow","grant","bestow on"],"cp":"07d66"},{"k":"挙","g":4,"on":["キョ"],"kun":["あ.げる","あ.がる","こぞ.る"],"m":["raise","plan","project","behavior","actions"],"cp":"06319"},{"k":"漁","g":4,"on":["ギョ","リョウ"],"kun":["あさ.る"],"m":["fishing","fishery"],"cp":"06f01"},{"k":"共","g":4,"on":["キョウ"],"kun":["とも","とも.に","-ども"],"m":["together","both","neither","all","and","alike","with"],"cp":"05171"},{"k":"協","g":4,"on":["キョウ"],"kun":[],"m":["co-","cooperation"],"cp":"05354"},{"k":"鏡","g":4,"on":["キョウ","ケイ"],"kun":["かがみ"],"m":["mirror","speculum","barrel-head","round rice-cake offering"],"cp":"093e1"},{"k":"競","g":4,"on":["キョウ","ケイ"],"kun":["きそ.う","せ.る","くら.べる"],"m":["emulate","compete with","bid","sell at auction","bout","contest","race"],"cp":"07af6"},{"k":"極","g":4,"on":["キョク","ゴク"],"kun":["きわ.める","きわ.まる","きわ.まり","きわ.み","き.める","-ぎ.め","き.まる"],"m":["extreme","pole","extremely","very","highly","most","end","settlement","conclusion","highest rank"],"cp":"06975"},{"k":"熊","g":4,"on":["ユウ"],"kun":["くま"],"m":["bear"],"cp":"0718a"},{"k":"訓","g":4,"on":["クン","キン"],"kun":["おし.える","よ.む","くん.ずる"],"m":["instruction","Japanese character reading","explanation","read"],"cp":"08a13"},{"k":"軍","g":4,"on":["グン"],"kun":["いくさ"],"m":["army","force","troops","war","battle"],"cp":"08ecd"},{"k":"郡","g":4,"on":["グン"],"kun":["こおり"],"m":["county","district"],"cp":"090e1"},{"k":"群","g":4,"on":["グン"],"kun":["む.れる","む.れ","むら","むら.がる"],"m":["flock","group","crowd","herd","swarm","cluster"],"cp":"07fa4"},{"k":"径","g":4,"on":["ケイ"],"kun":["みち","こみち","さしわたし","ただちに"],"m":["diameter","path","method"],"cp":"05f84"},{"k":"景","g":4,"on":["ケイ"],"kun":[],"m":["scenery","view"],"cp":"0666f"},{"k":"芸","g":4,"on":["ゲイ","ウン"],"kun":["う.える","のり","わざ"],"m":["technique","art","craft","performance","acting","trick","stunt"],"cp":"082b8"},{"k":"欠","g":4,"on":["ケツ","ケン"],"kun":["か.ける","か.く"],"m":["lack","gap","fail","yawning radical (no. 76)"],"cp":"06b20"},{"k":"結","g":4,"on":["ケツ","ケチ"],"kun":["むす.ぶ","ゆ.う","ゆ.わえる"],"m":["tie","bind","contract","join","organize","do up hair","fasten"],"cp":"07d50"},{"k":"建","g":4,"on":["ケン","コン"],"kun":["た.てる","た.て","-だ.て","た.つ"],"m":["build"],"cp":"05efa"},{"k":"健","g":4,"on":["ケン"],"kun":["すこ.やか"],"m":["healthy","health","strength","persistence"],"cp":"05065"},{"k":"験","g":4,"on":["ケン","ゲン"],"kun":["あかし","しるし","ため.す","ためし"],"m":["verification","effect","testing"],"cp":"09a13"},{"k":"固","g":4,"on":["コ"],"kun":["かた.める","かた.まる","かた.まり","かた.い"],"m":["harden","set","clot","curdle"],"cp":"056fa"},{"k":"功","g":4,"on":["コウ","ク"],"kun":["いさお"],"m":["achievement","merits","success","honor","credit"],"cp":"0529f"},{"k":"好","g":4,"on":["コウ"],"kun":["この.む","す.く","よ.い","い.い"],"m":["fond","pleasing","like something"],"cp":"0597d"},{"k":"香","g":4,"on":["コウ","キョウ"],"kun":["か","かお.り","かお.る"],"m":["incense","smell","perfume"],"cp":"09999"},{"k":"候","g":4,"on":["コウ"],"kun":["そうろう"],"m":["climate","season","weather","wait for","expect"],"cp":"05019"},{"k":"康","g":4,"on":["コウ"],"kun":[],"m":["ease","peace"],"cp":"05eb7"},{"k":"佐","g":4,"on":["サ"],"kun":[],"m":["assistant","help"],"cp":"04f50"},{"k":"差","g":4,"on":["サ"],"kun":["さ.す","さ.し"],"m":["distinction","difference","variation","discrepancy","margin","balance"],"cp":"05dee"},{"k":"菜","g":4,"on":["サイ"],"kun":["な"],"m":["vegetable","side dish","greens"],"cp":"083dc"},{"k":"最","g":4,"on":["サイ","シュ"],"kun":["もっと.も","つま"],"m":["utmost","most","extreme"],"cp":"06700"},{"k":"埼","g":4,"on":["キ"],"kun":["さき","さい","みさき"],"m":["cape","spit","promontory"],"cp":"057fc"},{"k":"材","g":4,"on":["ザイ"],"kun":[],"m":["lumber","log","timber","wood","materials","ingredients","talent"],"cp":"06750"},{"k":"崎","g":4,"on":["キ"],"kun":["さき","さい","みさき"],"m":["promontory","cape","spit"],"cp":"05d0e"},{"k":"昨","g":4,"on":["サク"],"kun":[],"m":["yesterday","previous"],"cp":"06628"},{"k":"札","g":4,"on":["サツ"],"kun":["ふだ"],"m":["tag","paper money","counter for bonds","placard","bid"],"cp":"0672d"},{"k":"刷","g":4,"on":["サツ"],"kun":["す.る","-ず.り","-ずり","は.く"],"m":["printing","print","brush"],"cp":"05237"},{"k":"察","g":4,"on":["サツ"],"kun":[],"m":["guess","presume","surmise","judge","understand"],"cp":"05bdf"},{"k":"参","g":4,"on":["サン","シン"],"kun":["まい.る","まい-","まじわる","みつ"],"m":["nonplussed","three (in documents)","going","coming","visiting","visit","be defeated","die","be madly in love","participate","take part in"],"cp":"053c2"},{"k":"産","g":4,"on":["サン"],"kun":["う.む","う.まれる","うぶ-","む.す"],"m":["products","bear","give birth","yield","childbirth","native","property"],"cp":"07523"},{"k":"散","g":4,"on":["サン"],"kun":["ち.る","ち.らす","-ち.らす","ち.らかす","ち.らかる","ち.らばる","ばら","ばら.ける"],"m":["scatter","disperse","spend","squander"],"cp":"06563"},{"k":"残","g":4,"on":["ザン","サン"],"kun":["のこ.る","のこ.す","そこな.う","のこ.り"],"m":["remainder","leftover","balance"],"cp":"06b8b"},{"k":"氏","g":4,"on":["シ"],"kun":["うじ","-うじ"],"m":["family name","surname","clan"],"cp":"06c0f"},{"k":"司","g":4,"on":["シ"],"kun":["つかさど.る"],"m":["director","official","govt office","rule","administer"],"cp":"053f8"},{"k":"試","g":4,"on":["シ"],"kun":["こころ.みる","ため.す"],"m":["test","try","attempt","experiment","ordeal"],"cp":"08a66"},{"k":"児","g":4,"on":["ジ","ニ","ゲイ"],"kun":["こ","-こ","-っこ"],"m":["newborn babe","child","young of animals"],"cp":"05150"},{"k":"治","g":4,"on":["ジ","チ"],"kun":["おさ.める","おさ.まる","なお.る","なお.す"],"m":["reign","be at peace","calm down","subdue","quell","govt","cure","heal","rule","conserve"],"cp":"06cbb"},{"k":"滋","g":4,"on":["ジ","シ"],"kun":[],"m":["nourishing","more & more","be luxuriant","planting","turbidity"],"cp":"06ecb"},{"k":"辞","g":4,"on":["ジ"],"kun":["や.める","いな.む"],"m":["resign","word","term","expression"],"cp":"08f9e"},{"k":"鹿","g":4,"on":["ロク"],"kun":["しか","か"],"m":["deer"],"cp":"09e7f"},{"k":"失","g":4,"on":["シツ"],"kun":["うしな.う","う.せる"],"m":["lose","error","fault","disadvantage","loss"],"cp":"05931"},{"k":"借","g":4,"on":["シャク"],"kun":["か.りる"],"m":["borrow","rent"],"cp":"0501f"},{"k":"種","g":4,"on":["シュ"],"kun":["たね","-ぐさ"],"m":["species","kind","class","variety","seed"],"cp":"07a2e"},{"k":"周","g":4,"on":["シュウ"],"kun":["まわ.り"],"m":["circumference","circuit","lap"],"cp":"05468"},{"k":"祝","g":4,"on":["シュク","シュウ"],"kun":["いわ.う"],"m":["celebrate","congratulate"],"cp":"0795d"},{"k":"順","g":4,"on":["ジュン"],"kun":[],"m":["obey","order","turn","right","docility","occasion"],"cp":"09806"},{"k":"初","g":4,"on":["ショ"],"kun":["はじ.め","はじ.めて","はつ","はつ-","うい-","-そ.める","-ぞ.め"],"m":["first time","beginning"],"cp":"0521d"},{"k":"松","g":4,"on":["ショウ"],"kun":["まつ"],"m":["pine tree"],"cp":"0677e"},{"k":"笑","g":4,"on":["ショウ"],"kun":["わら.う","え.む"],"m":["laugh"],"cp":"07b11"},{"k":"唱","g":4,"on":["ショウ"],"kun":["とな.える"],"m":["chant","recite","call upon","yell"],"cp":"05531"},{"k":"焼","g":4,"on":["ショウ"],"kun":["や.く","や.き","や.き-","-や.き","や.ける"],"m":["bake","burning"],"cp":"0713c"},{"k":"照","g":4,"on":["ショウ"],"kun":["て.る","て.らす","て.れる"],"m":["illuminate","shine","compare","bashful"],"cp":"07167"},{"k":"城","g":4,"on":["ジョウ","セイ"],"kun":["しろ"],"m":["castle"],"cp":"057ce"},{"k":"縄","g":4,"on":["ジョウ"],"kun":["なわ","ただ.す"],"m":["straw rope","cord"],"cp":"07e04"},{"k":"臣","g":4,"on":["シン","ジン"],"kun":[],"m":["retainer","subject"],"cp":"081e3"},{"k":"信","g":4,"on":["シン"],"kun":[],"m":["faith","truth","fidelity","trust"],"cp":"04fe1"},{"k":"井","g":4,"on":["セイ","ショウ"],"kun":["い"],"m":["well","well crib","town","community"],"cp":"04e95"},{"k":"成","g":4,"on":["セイ","ジョウ"],"kun":["な.る","な.す","-な.す"],"m":["turn into","become","get","grow","elapse","reach"],"cp":"06210"},{"k":"省","g":4,"on":["セイ","ショウ"],"kun":["かえり.みる","はぶ.く"],"m":["government ministry","conserve","omit"],"cp":"07701"},{"k":"清","g":4,"on":["セイ","ショウ","シン"],"kun":["きよ.い","きよ.まる","きよ.める"],"m":["pure","purify","cleanse","exorcise","Manchu dynasty"],"cp":"06e05"},{"k":"静","g":4,"on":["セイ","ジョウ"],"kun":["しず-","しず.か","しず.まる","しず.める"],"m":["quiet"],"cp":"09759"},{"k":"席","g":4,"on":["セキ"],"kun":["むしろ"],"m":["seat","mat","occasion","place"],"cp":"05e2d"},{"k":"積","g":4,"on":["セキ"],"kun":["つ.む","-づ.み","つ.もる","つ.もり"],"m":["volume","product (x*y)","acreage","contents","pile up","stack","load","amass"],"cp":"07a4d"},{"k":"折","g":4,"on":["セツ","シャク"],"kun":["お.る","おり","お.り","-お.り","お.れる"],"m":["fold","break","fracture","bend","yield","submit"],"cp":"06298"},{"k":"節","g":4,"on":["セツ","セチ"],"kun":["ふし","-ぶし","のっと"],"m":["node","season","period","occasion","verse","clause","stanza","honor","joint","knuckle","knob","knot","tune","melody"],"cp":"07bc0"},{"k":"説","g":4,"on":["セツ","ゼイ"],"kun":["と.く"],"m":["opinion","theory","explanation","rumor"],"cp":"08aac"},{"k":"浅","g":4,"on":["セン"],"kun":["あさ.い"],"m":["shallow","superficial","frivolous","wretched","shameful"],"cp":"06d45"},{"k":"戦","g":4,"on":["セン"],"kun":["いくさ","たたか.う","おのの.く","そよ.ぐ","わなな.く"],"m":["war","battle","match"],"cp":"06226"},{"k":"選","g":4,"on":["セン"],"kun":["えら.ぶ","え.る","よ.る"],"m":["elect","select","choose","prefer"],"cp":"09078"},{"k":"然","g":4,"on":["ゼン","ネン"],"kun":["しか","しか.り","しか.し","さ"],"m":["sort of thing","so","if so","in that case","well"],"cp":"07136"},{"k":"争","g":4,"on":["ソウ"],"kun":["あらそ.う","いか.でか"],"m":["contend","dispute","argue"],"cp":"04e89"},{"k":"倉","g":4,"on":["ソウ"],"kun":["くら"],"m":["godown","warehouse","storehouse","cellar","treasury"],"cp":"05009"},{"k":"巣","g":4,"on":["ソウ"],"kun":["す","す.くう"],"m":["nest","rookery","hive","cobweb","den"],"cp":"05de3"},{"k":"束","g":4,"on":["ソク"],"kun":["たば","たば.ねる","つか","つか.ねる"],"m":["bundle","sheaf","ream","tie in bundles","govern","manage","control"],"cp":"0675f"},{"k":"側","g":4,"on":["ソク"],"kun":["かわ","がわ","そば"],"m":["side","lean","oppose","regret"],"cp":"05074"},{"k":"続","g":4,"on":["ゾク","ショク","コウ","キョウ"],"kun":["つづ.く","つづ.ける","つぐ.ない"],"m":["continue","series","sequel"],"cp":"07d9a"},{"k":"卒","g":4,"on":["ソツ","シュツ"],"kun":["そっ.する","お.える","お.わる","ついに","にわか"],"m":["graduate","soldier","private","die"],"cp":"05352"},{"k":"孫","g":4,"on":["ソン"],"kun":["まご"],"m":["grandchild","descendants"],"cp":"05b6b"},{"k":"帯","g":4,"on":["タイ"],"kun":["お.びる","おび"],"m":["sash","belt","obi","zone","region"],"cp":"05e2f"},{"k":"隊","g":4,"on":["タイ"],"kun":[],"m":["regiment","party","company","squad"],"cp":"0968a"},{"k":"達","g":4,"on":["タツ","ダ"],"kun":["-たち"],"m":["accomplished","reach","arrive","attain"],"cp":"09054"},{"k":"単","g":4,"on":["タン"],"kun":["ひとえ"],"m":["simple","one","single","merely"],"cp":"05358"},{"k":"置","g":4,"on":["チ"],"kun":["お.く","-お.き"],"m":["placement","put","set","deposit","leave behind","keep","employ","pawn"],"cp":"07f6e"},{"k":"仲","g":4,"on":["チュウ"],"kun":["なか"],"m":["go-between","relationship"],"cp":"04ef2"},{"k":"沖","g":4,"on":["チュウ"],"kun":["おき","おきつ","ちゅう.する","わく"],"m":["open sea","offing","rise high into sky"],"cp":"06c96"},{"k":"兆","g":4,"on":["チョウ"],"kun":["きざ.す","きざ.し"],"m":["portent","10**12","trillion","sign","omen","symptoms"],"cp":"05146"},{"k":"低","g":4,"on":["テイ"],"kun":["ひく.い","ひく.める","ひく.まる"],"m":["lower","short","humble"],"cp":"04f4e"},{"k":"底","g":4,"on":["テイ"],"kun":["そこ"],"m":["bottom","sole","depth","bottom price","base","kind","sort"],"cp":"05e95"},{"k":"的","g":4,"on":["テキ"],"kun":["まと"],"m":["bull's eye","mark","target","object","adjective ending"],"cp":"07684"},{"k":"典","g":4,"on":["テン","デン"],"kun":["ふみ","のり"],"m":["code","ceremony","law","rule"],"cp":"05178"},{"k":"伝","g":4,"on":["デン","テン"],"kun":["つた.わる","つた.える","つた.う","つだ.う","-づた.い","つて"],"m":["transmit","go along","walk along","follow","report","communicate","legend","tradition"],"cp":"04f1d"},{"k":"徒","g":4,"on":["ト"],"kun":["いたずら","あだ"],"m":["on foot","junior","emptiness","vanity","futility","uselessness","ephemeral thing","gang","set","party","people"],"cp":"05f92"},{"k":"努","g":4,"on":["ド"],"kun":["つと.める"],"m":["toil","diligent","as much as possible"],"cp":"052aa"},{"k":"灯","g":4,"on":["トウ"],"kun":["ひ","ほ-","ともしび","とも.す","あかり"],"m":["lamp","a light","light","counter for lights"],"cp":"0706f"},{"k":"働","g":4,"on":["ドウ"],"kun":["はたら.く"],"m":["work","(kokuji)"],"cp":"050cd"},{"k":"特","g":4,"on":["トク"],"kun":[],"m":["special"],"cp":"07279"},{"k":"徳","g":4,"on":["トク"],"kun":[],"m":["benevolence","virtue","goodness","commanding respect"],"cp":"05fb3"},{"k":"栃","g":4,"on":[],"kun":["とち"],"m":["horse chestnut","(kokuji)"],"cp":"06803"},{"k":"奈","g":4,"on":["ナ","ナイ","ダイ"],"kun":["いかん","からなし"],"m":["Nara","what?"],"cp":"05948"},{"k":"梨","g":4,"on":["リ"],"kun":["なし"],"m":["pear tree"],"cp":"068a8"},{"k":"熱","g":4,"on":["ネツ"],"kun":["あつ.い"],"m":["heat","temperature","fever","mania","passion"],"cp":"071b1"},{"k":"念","g":4,"on":["ネン"],"kun":[],"m":["wish","sense","idea","thought","feeling","desire","attention"],"cp":"05ff5"},{"k":"敗","g":4,"on":["ハイ"],"kun":["やぶ.れる"],"m":["failure","defeat","reversal"],"cp":"06557"},{"k":"梅","g":4,"on":["バイ"],"kun":["うめ"],"m":["plum"],"cp":"06885"},{"k":"博","g":4,"on":["ハク","バク"],"kun":[],"m":["Dr.","command","esteem","win acclaim","Ph.D.","exposition","fair"],"cp":"0535a"},{"k":"阪","g":4,"on":["ハン"],"kun":["さか"],"m":["heights","slope"],"cp":"0962a"},{"k":"飯","g":4,"on":["ハン"],"kun":["めし"],"m":["meal","boiled rice"],"cp":"098ef"},{"k":"飛","g":4,"on":["ヒ"],"kun":["と.ぶ","と.ばす","-と.ばす"],"m":["fly","skip (pages)","scatter"],"cp":"098db"},{"k":"必","g":4,"on":["ヒツ"],"kun":["かなら.ず"],"m":["invariably","certain","inevitable"],"cp":"05fc5"},{"k":"票","g":4,"on":["ヒョウ"],"kun":[],"m":["ballot","label","ticket","sign"],"cp":"07968"},{"k":"標","g":4,"on":["ヒョウ"],"kun":["しるべ","しるし"],"m":["signpost","seal","mark","stamp","imprint","symbol","emblem","trademark","evidence","souvenir","target"],"cp":"06a19"},{"k":"不","g":4,"on":["フ","ブ"],"kun":[],"m":["negative","non-","bad","ugly","clumsy"],"cp":"04e0d"},{"k":"夫","g":4,"on":["フ","フウ","ブ"],"kun":["おっと","それ"],"m":["husband","man"],"cp":"0592b"},{"k":"付","g":4,"on":["フ"],"kun":["つ.ける","-つ.ける","-づ.ける","つ.け","つ.け-","-つ.け","-づ.け","-づけ","つ.く","-づ.く","つ.き","-つ.き","-つき","-づ.き","-づき"],"m":["adhere","attach","refer to","append"],"cp":"04ed8"},{"k":"府","g":4,"on":["フ"],"kun":[],"m":["borough","urban prefecture","govt office","representative body","storehouse"],"cp":"05e9c"},{"k":"阜","g":4,"on":["フ","フウ"],"kun":[],"m":["hill","mound","left village radical (no. 170)"],"cp":"0961c"},{"k":"富","g":4,"on":["フ","フウ"],"kun":["と.む","とみ"],"m":["wealth","enrich","abundant"],"cp":"05bcc"},{"k":"副","g":4,"on":["フク"],"kun":[],"m":["vice-","assistant","aide","duplicate","copy"],"cp":"0526f"},{"k":"兵","g":4,"on":["ヘイ","ヒョウ"],"kun":["つわもの"],"m":["soldier","private","troops","army","warfare","strategy","tactics"],"cp":"05175"},{"k":"別","g":4,"on":["ベツ"],"kun":["わか.れる","わ.ける"],"m":["separate","branch off","diverge","fork","another","extra","specially"],"cp":"05225"},{"k":"辺","g":4,"on":["ヘン"],"kun":["あた.り","ほと.り","-べ"],"m":["environs","boundary","border","vicinity"],"cp":"08fba"},{"k":"変","g":4,"on":["ヘン"],"kun":["か.わる","か.わり","か.える"],"m":["unusual","change","strange"],"cp":"05909"},{"k":"便","g":4,"on":["ベン","ビン"],"kun":["たよ.り"],"m":["convenience","facility","excrement","feces","letter","chance"],"cp":"04fbf"},{"k":"包","g":4,"on":["ホウ"],"kun":["つつ.む","くる.む"],"m":["wrap","pack up","cover","conceal"],"cp":"05305"},{"k":"法","g":4,"on":["ホウ","ハッ","ホッ","フラン"],"kun":["のり"],"m":["method","law","rule","principle","model","system"],"cp":"06cd5"},{"k":"望","g":4,"on":["ボウ","モウ"],"kun":["のぞ.む","もち"],"m":["ambition","full moon","hope","desire","aspire to","expect"],"cp":"0671b"},{"k":"牧","g":4,"on":["ボク"],"kun":["まき"],"m":["breed","care for","shepherd","feed","pasture"],"cp":"07267"},{"k":"末","g":4,"on":["マツ","バツ"],"kun":["すえ","うら","うれ"],"m":["end","close","tip","powder","posterity"],"cp":"0672b"},{"k":"満","g":4,"on":["マン","バン"],"kun":["み.ちる","み.つ","み.たす"],"m":["full","fullness","enough","satisfy"],"cp":"06e80"},{"k":"未","g":4,"on":["ミ","ビ"],"kun":["いま.だ","ま.だ","ひつじ"],"m":["un-","not yet","hitherto","still","even now","sign of the ram","1-3PM","eighth sign of Chinese zodiac"],"cp":"0672a"},{"k":"民","g":4,"on":["ミン"],"kun":["たみ"],"m":["people","nation","subjects"],"cp":"06c11"},{"k":"無","g":4,"on":["ム","ブ"],"kun":["な.い"],"m":["nothingness","none","ain't","nothing","nil","not"],"cp":"07121"},{"k":"約","g":4,"on":["ヤク"],"kun":["つづ.まる","つづ.める","つづま.やか"],"m":["promise","approximately","shrink"],"cp":"07d04"},{"k":"勇","g":4,"on":["ユウ"],"kun":["いさ.む"],"m":["courage","cheer up","be in high spirits","bravery","heroism"],"cp":"052c7"},{"k":"要","g":4,"on":["ヨウ"],"kun":["い.る","かなめ"],"m":["need","main point","essence","pivot","key to"],"cp":"08981"},{"k":"養","g":4,"on":["ヨウ","リョウ"],"kun":["やしな.う"],"m":["foster","bring up","rear","develop","nurture"],"cp":"0990a"},{"k":"浴","g":4,"on":["ヨク"],"kun":["あ.びる","あ.びせる"],"m":["bathe","be favored with","bask in"],"cp":"06d74"},{"k":"利","g":4,"on":["リ"],"kun":["き.く"],"m":["profit","advantage","benefit"],"cp":"05229"},{"k":"陸","g":4,"on":["リク","ロク"],"kun":["おか"],"m":["land","six"],"cp":"09678"},{"k":"良","g":4,"on":["リョウ"],"kun":["よ.い","-よ.い","い.い","-い.い"],"m":["good","pleasing","skilled"],"cp":"0826f"},{"k":"料","g":4,"on":["リョウ"],"kun":[],"m":["fee","materials"],"cp":"06599"},{"k":"量","g":4,"on":["リョウ"],"kun":["はか.る"],"m":["quantity","measure","weight","amount","consider","estimate","surmise"],"cp":"091cf"},{"k":"輪","g":4,"on":["リン"],"kun":["わ"],"m":["wheel","ring","circle","link","loop","counter for wheels and flowers"],"cp":"08f2a"},{"k":"類","g":4,"on":["ルイ"],"kun":["たぐ.い"],"m":["sort","kind","variety","class","genus"],"cp":"0985e"},{"k":"令","g":4,"on":["レイ"],"kun":[],"m":["orders","laws","command","decree","good"],"cp":"04ee4"},{"k":"冷","g":4,"on":["レイ"],"kun":["つめ.たい","ひ.える","ひ.や","ひ.ややか","ひ.やす","ひ.やかす","さ.める","さ.ます"],"m":["cool","cold (beer, person)","chill"],"cp":"051b7"},{"k":"例","g":4,"on":["レイ"],"kun":["たと.える"],"m":["example","custom","usage","precedent"],"cp":"04f8b"},{"k":"連","g":4,"on":["レン"],"kun":["つら.なる","つら.ねる","つ.れる","-づ.れ"],"m":["take along","lead","join","connect","party","gang","clique"],"cp":"09023"},{"k":"老","g":4,"on":["ロウ"],"kun":["お.いる","ふ.ける"],"m":["old man","old age","grow old"],"cp":"08001"},{"k":"労","g":4,"on":["ロウ"],"kun":["ろう.する","いたわ.る","いた.ずき","ねぎら","つか.れる","ねぎら.う"],"m":["labor","thank for","reward for","toil","trouble"],"cp":"052b4"},{"k":"録","g":4,"on":["ロク"],"kun":["しる.す","と.る"],"m":["record"],"cp":"09332"},{"k":"圧","g":5,"on":["アツ","エン","オウ"],"kun":["お.す","へ.す","おさ.える","お.さえる"],"m":["pressure","push","overwhelm","oppress","dominate"],"cp":"05727"},{"k":"囲","g":5,"on":["イ"],"kun":["かこ.む","かこ.う","かこ.い"],"m":["surround","besiege","store","paling","enclosure","encircle","preserve","keep"],"cp":"056f2"},{"k":"移","g":5,"on":["イ"],"kun":["うつ.る","うつ.す"],"m":["shift","move","change","drift","catch (cold, fire)","pass into"],"cp":"079fb"},{"k":"因","g":5,"on":["イン"],"kun":["よ.る","ちな.む"],"m":["cause","factor","be associated with","depend on","be limited to"],"cp":"056e0"},{"k":"永","g":5,"on":["エイ"],"kun":["なが.い"],"m":["eternity","long","lengthy"],"cp":"06c38"},{"k":"営","g":5,"on":["エイ"],"kun":["いとな.む","いとな.み"],"m":["camp","perform","build","conduct (business)"],"cp":"055b6"},{"k":"衛","g":5,"on":["エイ","エ"],"kun":[],"m":["defense","protection"],"cp":"0885b"},{"k":"易","g":5,"on":["エキ","イ"],"kun":["やさ.しい","やす.い"],"m":["easy","ready to","simple","fortune-telling","divination"],"cp":"06613"},{"k":"益","g":5,"on":["エキ","ヤク"],"kun":["ま.す"],"m":["benefit","gain","profit","advantage"],"cp":"076ca"},{"k":"液","g":5,"on":["エキ"],"kun":[],"m":["fluid","liquid","juice","sap","secretion"],"cp":"06db2"},{"k":"演","g":5,"on":["エン"],"kun":[],"m":["performance","act","play","render","stage"],"cp":"06f14"},{"k":"応","g":5,"on":["オウ","ヨウ","-ノウ"],"kun":["あた.る","まさに","こた.える"],"m":["apply","answer","yes","OK","reply","accept"],"cp":"05fdc"},{"k":"往","g":5,"on":["オウ"],"kun":["い.く","いにしえ","さき.に","ゆ.く"],"m":["journey","travel","chase away","let go","going","before","formerly"],"cp":"05f80"},{"k":"桜","g":5,"on":["オウ","ヨウ"],"kun":["さくら"],"m":["cherry"],"cp":"0685c"},{"k":"可","g":5,"on":["カ","コク"],"kun":["-べ.き","-べ.し"],"m":["can","passable","approval"],"cp":"053ef"},{"k":"仮","g":5,"on":["カ","ケ"],"kun":["かり","かり-"],"m":["sham","temporary","interim","assumed (name)","informal"],"cp":"04eee"},{"k":"価","g":5,"on":["カ","ケ"],"kun":["あたい"],"m":["value","price"],"cp":"04fa1"},{"k":"河","g":5,"on":["カ"],"kun":["かわ"],"m":["river"],"cp":"06cb3"},{"k":"過","g":5,"on":["カ"],"kun":["す.ぎる","す.ごす","あやま.ち","あやま.つ","よぎ.る","よ.ぎる"],"m":["overdo","exceed","go beyond","error"],"cp":"0904e"},{"k":"快","g":5,"on":["カイ"],"kun":["こころよ.い"],"m":["cheerful","pleasant","agreeable","comfortable"],"cp":"05feb"},{"k":"解","g":5,"on":["カイ","ゲ"],"kun":["と.く","と.かす","と.ける","ほど.く","ほぐ.す","わか.る","さと.る"],"m":["unravel","notes","key","explanation","understanding","untie","undo","solve","answer","cancel","absolve","explain","minute"],"cp":"089e3"},{"k":"格","g":5,"on":["カク","コウ","キャク","ゴウ"],"kun":[],"m":["status","rank","capacity","character","case (law, grammar)"],"cp":"0683c"},{"k":"確","g":5,"on":["カク","コウ"],"kun":["たし.か","たし.かめる"],"m":["assurance","firm","tight","hard","solid","confirm","clear","evident"],"cp":"078ba"},{"k":"額","g":5,"on":["ガク"],"kun":["ひたい"],"m":["forehead","tablet","plaque","framed picture","sum","amount","volume"],"cp":"0984d"},{"k":"刊","g":5,"on":["カン"],"kun":[],"m":["publish","carve","engrave"],"cp":"0520a"},{"k":"幹","g":5,"on":["カン"],"kun":["みき"],"m":["tree trunk","main part","talent","capability"],"cp":"05e79"},{"k":"慣","g":5,"on":["カン"],"kun":["な.れる","な.らす"],"m":["accustomed","get used to","become experienced"],"cp":"06163"},{"k":"眼","g":5,"on":["ガン","ゲン"],"kun":["まなこ","め"],"m":["eyeball"],"cp":"0773c"},{"k":"紀","g":5,"on":["キ"],"kun":[],"m":["chronicle","account","narrative","history","annals","geologic period"],"cp":"07d00"},{"k":"基","g":5,"on":["キ"],"kun":["もと","もとい"],"m":["fundamentals","radical (chem)","counter for machines","foundation"],"cp":"057fa"},{"k":"寄","g":5,"on":["キ"],"kun":["よ.る","-よ.り","よ.せる"],"m":["draw near","stop in","bring near","gather","collect","send","forward"],"cp":"05bc4"},{"k":"規","g":5,"on":["キ"],"kun":[],"m":["standard","measure"],"cp":"0898f"},{"k":"喜","g":5,"on":["キ"],"kun":["よろこ.ぶ","よろこ.ばす"],"m":["rejoice","take pleasure in"],"cp":"0559c"},{"k":"技","g":5,"on":["ギ"],"kun":["わざ"],"m":["skill","art","craft","ability","feat","performance","vocation","arts"],"cp":"06280"},{"k":"義","g":5,"on":["ギ"],"kun":[],"m":["righteousness","justice","morality","honor","loyalty","meaning"],"cp":"07fa9"},{"k":"逆","g":5,"on":["ギャク","ゲキ"],"kun":["さか","さか.さ","さか.らう"],"m":["inverted","reverse","opposite","wicked"],"cp":"09006"},{"k":"久","g":5,"on":["キュウ","ク"],"kun":["ひさ.しい"],"m":["long time","old story"],"cp":"04e45"},{"k":"旧","g":5,"on":["キュウ"],"kun":["ふる.い","もと"],"m":["old times","old things","old friend","former","ex-"],"cp":"065e7"},{"k":"救","g":5,"on":["キュウ"],"kun":["すく.う"],"m":["salvation","save","help","rescue","reclaim"],"cp":"06551"},{"k":"居","g":5,"on":["キョ","コ"],"kun":["い.る","-い","お.る"],"m":["reside","to be","exist","live with"],"cp":"05c45"},{"k":"許","g":5,"on":["キョ"],"kun":["ゆる.す","もと"],"m":["permit","approve"],"cp":"08a31"},{"k":"境","g":5,"on":["キョウ","ケイ"],"kun":["さかい"],"m":["boundary","border","region"],"cp":"05883"},{"k":"均","g":5,"on":["キン"],"kun":["なら.す"],"m":["level","average"],"cp":"05747"},{"k":"禁","g":5,"on":["キン"],"kun":[],"m":["prohibition","ban","forbid"],"cp":"07981"},{"k":"句","g":5,"on":["ク"],"kun":[],"m":["phrase","clause","sentence","passage","paragraph","counter for haiku"],"cp":"053e5"},{"k":"型","g":5,"on":["ケイ"],"kun":["かた","-がた"],"m":["mould","type","model"],"cp":"0578b"},{"k":"経","g":5,"on":["ケイ","キョウ","キン"],"kun":["へ.る","た.つ","たていと","はか.る","のり"],"m":["sutra","longitude","pass thru","expire","warp"],"cp":"07d4c"},{"k":"潔","g":5,"on":["ケツ"],"kun":["いさぎよ.い"],"m":["undefiled","pure","clean","righteous","gallant"],"cp":"06f54"},{"k":"件","g":5,"on":["ケン"],"kun":["くだん"],"m":["affair","case","matter","item"],"cp":"04ef6"},{"k":"険","g":5,"on":["ケン"],"kun":["けわ.しい"],"m":["precipitous","inaccessible place","impregnable position","steep place","sharp eyes"],"cp":"0967a"},{"k":"検","g":5,"on":["ケン"],"kun":["しら.べる"],"m":["examination","investigate"],"cp":"0691c"},{"k":"限","g":5,"on":["ゲン"],"kun":["かぎ.る","かぎ.り","-かぎ.り"],"m":["limit","restrict","to best of ability"],"cp":"09650"},{"k":"現","g":5,"on":["ゲン"],"kun":["あらわ.れる","あらわ.す","うつつ","うつ.つ"],"m":["present","existing","actual"],"cp":"073fe"},{"k":"減","g":5,"on":["ゲン"],"kun":["へ.る","へ.らす"],"m":["dwindle","decrease","reduce","decline","curtail","get hungry"],"cp":"06e1b"},{"k":"故","g":5,"on":["コ"],"kun":["ゆえ","ふる.い","もと"],"m":["happenstance","especially","intentionally","reason","cause","circumstances","the late","therefore","consequently"],"cp":"06545"},{"k":"個","g":5,"on":["コ","カ"],"kun":[],"m":["individual","counter for articles"],"cp":"0500b"},{"k":"護","g":5,"on":["ゴ"],"kun":["まも.る"],"m":["safeguard","protect"],"cp":"08b77"},{"k":"効","g":5,"on":["コウ"],"kun":["き.く","ききめ","なら.う"],"m":["merit","efficacy","efficiency","benefit"],"cp":"052b9"},{"k":"厚","g":5,"on":["コウ"],"kun":["あつ.い","あか"],"m":["thick","heavy","rich","kind","cordial","brazen","shameless"],"cp":"0539a"},{"k":"耕","g":5,"on":["コウ"],"kun":["たがや.す"],"m":["till","plow","cultivate"],"cp":"08015"},{"k":"航","g":5,"on":["コウ"],"kun":[],"m":["navigate","sail","cruise","fly"],"cp":"0822a"},{"k":"鉱","g":5,"on":["コウ"],"kun":["あらがね"],"m":["mineral","ore"],"cp":"09271"},{"k":"構","g":5,"on":["コウ"],"kun":["かま.える","かま.う"],"m":["posture","stance","appearance","build","set up"],"cp":"069cb"},{"k":"興","g":5,"on":["コウ","キョウ"],"kun":["おこ.る","おこ.す"],"m":["entertain","revive","retrieve","interest","pleasure"],"cp":"08208"},{"k":"講","g":5,"on":["コウ"],"kun":[],"m":["lecture","club","association"],"cp":"08b1b"},{"k":"告","g":5,"on":["コク"],"kun":["つ.げる"],"m":["revelation","tell","inform","announce"],"cp":"0544a"},{"k":"混","g":5,"on":["コン"],"kun":["ま.じる","-ま.じり","ま.ざる","ま.ぜる","こ.む"],"m":["mix","blend","confuse"],"cp":"06df7"},{"k":"査","g":5,"on":["サ"],"kun":[],"m":["investigate"],"cp":"067fb"},{"k":"再","g":5,"on":["サイ","サ"],"kun":["ふたた.び"],"m":["again","twice","second time"],"cp":"0518d"},{"k":"災","g":5,"on":["サイ"],"kun":["わざわ.い"],"m":["disaster","calamity","woe","curse","evil"],"cp":"0707d"},{"k":"妻","g":5,"on":["サイ"],"kun":["つま"],"m":["wife","spouse"],"cp":"059bb"},{"k":"採","g":5,"on":["サイ"],"kun":["と.る"],"m":["pick","take","fetch","take up"],"cp":"063a1"},{"k":"際","g":5,"on":["サイ"],"kun":["きわ","-ぎわ"],"m":["occasion","side","edge","verge","dangerous","adventurous","indecent","time","when"],"cp":"0969b"},{"k":"在","g":5,"on":["ザイ"],"kun":["あ.る"],"m":["exist","outskirts","suburbs","located in"],"cp":"05728"},{"k":"財","g":5,"on":["ザイ","サイ","ゾク"],"kun":["たから"],"m":["property","money","wealth","assets"],"cp":"08ca1"},{"k":"罪","g":5,"on":["ザイ"],"kun":["つみ"],"m":["guilt","sin","crime","fault","blame","offense"],"cp":"07f6a"},{"k":"殺","g":5,"on":["サツ","サイ","セツ"],"kun":["ころ.す","-ごろ.し","そ.ぐ","あや.める"],"m":["kill","murder","butcher","slice off","split","diminish","reduce","spoil"],"cp":"06bba"},{"k":"雑","g":5,"on":["ザツ","ゾウ"],"kun":["まじ.える","まじ.る"],"m":["miscellaneous"],"cp":"096d1"},{"k":"酸","g":5,"on":["サン"],"kun":["す.い"],"m":["acid","bitterness","sour","tart"],"cp":"09178"},{"k":"賛","g":5,"on":["サン"],"kun":["たす.ける","たた.える"],"m":["approve","praise","title or inscription on picture","assist","agree with"],"cp":"08cdb"},{"k":"士","g":5,"on":["シ"],"kun":["さむらい"],"m":["gentleman","scholar","samurai","samurai radical (no. 33)"],"cp":"058eb"},{"k":"支","g":5,"on":["シ"],"kun":["ささ.える","つか.える","か.う"],"m":["branch","support","sustain","branch radical (no. 65)"],"cp":"0652f"},{"k":"史","g":5,"on":["シ"],"kun":[],"m":["history","chronicle"],"cp":"053f2"},{"k":"志","g":5,"on":["シ"],"kun":["シリング","こころざ.す","こころざし"],"m":["intention","plan","resolve","aspire","motive","hopes","shilling"],"cp":"05fd7"},{"k":"枝","g":5,"on":["シ"],"kun":["えだ"],"m":["bough","branch","twig","limb","counter for branches"],"cp":"0679d"},{"k":"師","g":5,"on":["シ"],"kun":["いくさ"],"m":["expert","teacher","master","model","exemplar","army (incl. counter)","war"],"cp":"05e2b"},{"k":"資","g":5,"on":["シ"],"kun":[],"m":["assets","resources","capital","funds","data","be conducive to","contribute to"],"cp":"08cc7"},{"k":"飼","g":5,"on":["シ"],"kun":["か.う"],"m":["domesticate","raise","keep","feed"],"cp":"098fc"},{"k":"示","g":5,"on":["ジ","シ"],"kun":["しめ.す"],"m":["show","indicate","point out","express","display"],"cp":"0793a"},{"k":"似","g":5,"on":["ジ"],"kun":["に.る","ひ.る"],"m":["becoming","resemble","counterfeit","imitate","suitable"],"cp":"04f3c"},{"k":"識","g":5,"on":["シキ"],"kun":["し.る","しる.す"],"m":["discriminating","know","write"],"cp":"08b58"},{"k":"質","g":5,"on":["シツ","シチ","チ"],"kun":["たち","ただ.す","もと","わりふ"],"m":["substance","quality","matter","temperament"],"cp":"08cea"},{"k":"舎","g":5,"on":["シャ","セキ"],"kun":["やど.る"],"m":["cottage","inn","hut","house","mansion"],"cp":"0820e"},{"k":"謝","g":5,"on":["シャ"],"kun":["あやま.る"],"m":["apologize","thank","refuse"],"cp":"08b1d"},{"k":"授","g":5,"on":["ジュ"],"kun":["さず.ける","さず.かる"],"m":["impart","instruct","grant","confer"],"cp":"06388"},{"k":"修","g":5,"on":["シュウ","シュ"],"kun":["おさ.める","おさ.まる"],"m":["discipline","conduct oneself well","study","master"],"cp":"04fee"},{"k":"述","g":5,"on":["ジュツ"],"kun":["の.べる"],"m":["mention","state","speak","relate"],"cp":"08ff0"},{"k":"術","g":5,"on":["ジュツ"],"kun":["すべ"],"m":["art","technique","skill","means","trick","resources","magic"],"cp":"08853"},{"k":"準","g":5,"on":["ジュン"],"kun":["じゅん.じる","じゅん.ずる","なぞら.える","のり","ひと.しい","みずもり"],"m":["semi-","correspond to","proportionate to","conform","imitate"],"cp":"06e96"},{"k":"序","g":5,"on":["ジョ"],"kun":["つい.で","ついで"],"m":["preface","beginning","order","precedence","occasion","chance","incidentally"],"cp":"05e8f"},{"k":"招","g":5,"on":["ショウ"],"kun":["まね.く"],"m":["beckon","invite","summon","engage"],"cp":"062db"},{"k":"証","g":5,"on":["ショウ"],"kun":["あかし"],"m":["evidence","proof","certificate"],"cp":"08a3c"},{"k":"象","g":5,"on":["ショウ","ゾウ"],"kun":["かたど.る"],"m":["elephant","pattern after","imitate","image","shape","sign (of the times)"],"cp":"08c61"},{"k":"賞","g":5,"on":["ショウ"],"kun":["ほ.める"],"m":["prize","reward","praise"],"cp":"08cde"},{"k":"条","g":5,"on":["ジョウ","チョウ","デキ"],"kun":["えだ","すじ"],"m":["article","clause","counter for articles, clauses, paragraphs, etc.","twig","item","stripe","streak"],"cp":"06761"},{"k":"状","g":5,"on":["ジョウ"],"kun":[],"m":["status quo","conditions","circumstances","form","appearance"],"cp":"072b6"},{"k":"常","g":5,"on":["ジョウ"],"kun":["つね","とこ-"],"m":["usual","ordinary","normal","common","regular","continually","always","long-lasting"],"cp":"05e38"},{"k":"情","g":5,"on":["ジョウ","セイ"],"kun":["なさ.け"],"m":["feelings","emotion","passion","sympathy","circumstances","facts"],"cp":"060c5"},{"k":"織","g":5,"on":["ショク","シキ"],"kun":["お.る","お.り","おり","-おり","-お.り"],"m":["weave","fabric"],"cp":"07e54"},{"k":"職","g":5,"on":["ショク","ソク"],"kun":[],"m":["post","employment","work"],"cp":"08077"},{"k":"制","g":5,"on":["セイ"],"kun":[],"m":["system","law","rule"],"cp":"05236"},{"k":"性","g":5,"on":["セイ","ショウ"],"kun":["さが"],"m":["sex","gender","nature"],"cp":"06027"},{"k":"政","g":5,"on":["セイ","ショウ"],"kun":["まつりごと","まん"],"m":["politics","government"],"cp":"0653f"},{"k":"勢","g":5,"on":["セイ","ゼイ"],"kun":["いきお.い","はずみ"],"m":["forces","energy","military strength"],"cp":"052e2"},{"k":"精","g":5,"on":["セイ","ショウ"],"kun":["しら.げる","くわ.しい"],"m":["refined","ghost","fairy","energy","vitality","semen","excellence","purity","skill"],"cp":"07cbe"},{"k":"製","g":5,"on":["セイ"],"kun":[],"m":["made in...","manufacture"],"cp":"088fd"},{"k":"税","g":5,"on":["ゼイ"],"kun":[],"m":["tax","duty"],"cp":"07a0e"},{"k":"責","g":5,"on":["セキ"],"kun":["せ.める"],"m":["blame","condemn","censure"],"cp":"08cac"},{"k":"績","g":5,"on":["セキ"],"kun":[],"m":["exploits","achievements","unreeling cocoons"],"cp":"07e3e"},{"k":"接","g":5,"on":["セツ","ショウ"],"kun":["つ.ぐ"],"m":["touch","contact","adjoin","piece together"],"cp":"063a5"},{"k":"設","g":5,"on":["セツ"],"kun":["もう.ける"],"m":["establishment","provision","prepare"],"cp":"08a2d"},{"k":"絶","g":5,"on":["ゼツ"],"kun":["た.える","た.やす","た.つ"],"m":["discontinue","sever","cut off","abstain","interrupt","suppress","be beyond","without match","peerless","unparalleled"],"cp":"07d76"},{"k":"祖","g":5,"on":["ソ"],"kun":[],"m":["ancestor","pioneer","founder"],"cp":"07956"},{"k":"素","g":5,"on":["ソ","ス"],"kun":["もと"],"m":["elementary","principle","naked","uncovered"],"cp":"07d20"},{"k":"総","g":5,"on":["ソウ"],"kun":["す.べて","すべ.て","ふさ"],"m":["general","whole","all","full","total"],"cp":"07dcf"},{"k":"造","g":5,"on":["ゾウ"],"kun":["つく.る","つく.り","-づく.り"],"m":["create","make","structure","physique"],"cp":"09020"},{"k":"像","g":5,"on":["ゾウ"],"kun":[],"m":["statue","picture","image","figure","portrait"],"cp":"050cf"},{"k":"増","g":5,"on":["ゾウ"],"kun":["ま.す","ま.し","ふ.える","ふ.やす"],"m":["increase","add","augment","gain","promote"],"cp":"05897"},{"k":"則","g":5,"on":["ソク"],"kun":["のっと.る","のり","すなわち"],"m":["rule","law","follow","based on","model after"],"cp":"05247"},{"k":"測","g":5,"on":["ソク"],"kun":["はか.る"],"m":["fathom","plan","scheme","measure"],"cp":"06e2c"},{"k":"属","g":5,"on":["ゾク","ショク"],"kun":["さかん","つく","やから"],"m":["belong","genus","subordinate official","affiliated"],"cp":"05c5e"},{"k":"率","g":5,"on":["ソツ","リツ","シュツ"],"kun":["ひき.いる"],"m":["ratio","rate","proportion","%","factor","lead","spearhead","command"],"cp":"07387"},{"k":"損","g":5,"on":["ソン"],"kun":["そこ.なう","そこな.う","-そこ.なう","そこ.ねる","-そこ.ねる"],"m":["damage","loss","disadvantage","hurt","injure"],"cp":"0640d"},{"k":"貸","g":5,"on":["タイ"],"kun":["か.す","か.し-","かし-"],"m":["lend"],"cp":"08cb8"},{"k":"態","g":5,"on":["タイ"],"kun":["わざ.と"],"m":["attitude","condition","figure","appearance","voice (of verbs)"],"cp":"0614b"},{"k":"団","g":5,"on":["ダン","トン"],"kun":["かたまり","まる.い"],"m":["group","association"],"cp":"056e3"},{"k":"断","g":5,"on":["ダン"],"kun":["た.つ","ことわ.る","さだ.める"],"m":["severance","decline","refuse","apologize","warn","dismiss","prohibit","decision","judgement","cutting"],"cp":"065ad"},{"k":"築","g":5,"on":["チク"],"kun":["きず.く"],"m":["fabricate","build","construct"],"cp":"07bc9"},{"k":"貯","g":5,"on":["チョ"],"kun":["た.める","たくわ.える"],"m":["savings","store","lay in","keep","wear mustache"],"cp":"08caf"},{"k":"張","g":5,"on":["チョウ"],"kun":["は.る","-は.り","-ば.り"],"m":["counter for bows & stringed instruments","stretch","spread","put up (tent)"],"cp":"05f35"},{"k":"停","g":5,"on":["テイ"],"kun":["と.める","と.まる"],"m":["halt","stopping"],"cp":"0505c"},{"k":"提","g":5,"on":["テイ","チョウ","ダイ"],"kun":["さ.げる"],"m":["propose","take along","carry in hand"],"cp":"063d0"},{"k":"程","g":5,"on":["テイ"],"kun":["ほど","-ほど"],"m":["extent","degree","law","formula","distance","limits","amount"],"cp":"07a0b"},{"k":"適","g":5,"on":["テキ"],"kun":["かな.う"],"m":["suitable","occasional","rare","qualified","capable"],"cp":"09069"},{"k":"統","g":5,"on":["トウ"],"kun":["す.べる"],"m":["overall","relationship","ruling","governing"],"cp":"07d71"},{"k":"堂","g":5,"on":["ドウ"],"kun":[],"m":["public chamber","hall"],"cp":"05802"},{"k":"銅","g":5,"on":["ドウ"],"kun":["あかがね"],"m":["copper"],"cp":"09285"},{"k":"導","g":5,"on":["ドウ"],"kun":["みちび.く"],"m":["guidance","leading","conduct","usher"],"cp":"05c0e"},{"k":"得","g":5,"on":["トク"],"kun":["え.る","う.る"],"m":["gain","get","find","earn","acquire","can","may","able to","profit","advantage","benefit"],"cp":"05f97"},{"k":"毒","g":5,"on":["ドク"],"kun":[],"m":["poison","virus","venom","germ","harm","injury","spite"],"cp":"06bd2"},{"k":"独","g":5,"on":["ドク","トク"],"kun":["ひと.り"],"m":["single","alone","spontaneously","Germany"],"cp":"072ec"},{"k":"任","g":5,"on":["ニン"],"kun":["まか.せる","まか.す"],"m":["responsibility","duty","term","entrust to","appoint"],"cp":"04efb"},{"k":"燃","g":5,"on":["ネン"],"kun":["も.える","も.やす","も.す"],"m":["burn","blaze","glow"],"cp":"071c3"},{"k":"能","g":5,"on":["ノウ"],"kun":["よ.く","あた.う"],"m":["ability","talent","skill","capacity"],"cp":"080fd"},{"k":"破","g":5,"on":["ハ"],"kun":["やぶ.る","やぶ.れる","わ.れる"],"m":["rend","rip","tear","break","destroy","defeat","frustrate"],"cp":"07834"},{"k":"犯","g":5,"on":["ハン","ボン"],"kun":["おか.す"],"m":["crime","sin","offense"],"cp":"072af"},{"k":"判","g":5,"on":["ハン","バン"],"kun":["わか.る"],"m":["judgement","judgment","signature","stamp","seal"],"cp":"05224"},{"k":"版","g":5,"on":["ハン"],"kun":[],"m":["printing block","printing plate","edition","impression","label"],"cp":"07248"},{"k":"比","g":5,"on":["ヒ"],"kun":["くら.べる"],"m":["compare","race","ratio","Philippines"],"cp":"06bd4"},{"k":"肥","g":5,"on":["ヒ"],"kun":["こ.える","こえ","こ.やす","こ.やし","ふと.る"],"m":["fertilizer","get fat","fertile","manure","pamper"],"cp":"080a5"},{"k":"非","g":5,"on":["ヒ"],"kun":["あら.ず"],"m":["un-","mistake","negative","injustice","non-"],"cp":"0975e"},{"k":"費","g":5,"on":["ヒ"],"kun":["つい.やす","つい.える"],"m":["expense","cost","spend","consume","waste"],"cp":"08cbb"},{"k":"備","g":5,"on":["ビ"],"kun":["そな.える","そな.わる","つぶさ.に"],"m":["equip","provision","preparation"],"cp":"05099"},{"k":"評","g":5,"on":["ヒョウ"],"kun":[],"m":["evaluate","criticism","comment"],"cp":"08a55"},{"k":"貧","g":5,"on":["ヒン","ビン"],"kun":["まず.しい"],"m":["poverty","poor"],"cp":"08ca7"},{"k":"布","g":5,"on":["フ","ホ"],"kun":["ぬの","し.く","きれ"],"m":["linen","cloth","spread","distribute"],"cp":"05e03"},{"k":"婦","g":5,"on":["フ"],"kun":["よめ"],"m":["lady","woman","wife","bride"],"cp":"05a66"},{"k":"武","g":5,"on":["ブ","ム"],"kun":["たけ","たけ.し"],"m":["warrior","military","chivalry","arms"],"cp":"06b66"},{"k":"復","g":5,"on":["フク"],"kun":["また"],"m":["restore","return to","revert","resume"],"cp":"05fa9"},{"k":"複","g":5,"on":["フク"],"kun":[],"m":["duplicate","double","compound","multiple"],"cp":"08907"},{"k":"仏","g":5,"on":["ブツ","フツ"],"kun":["ほとけ"],"m":["Buddha","the dead","France"],"cp":"04ecf"},{"k":"粉","g":5,"on":["フン"],"kun":["デシメートル","こ","こな"],"m":["flour","powder","dust"],"cp":"07c89"},{"k":"編","g":5,"on":["ヘン"],"kun":["あ.む","-あ.み"],"m":["compilation","knit","plait","braid","twist","editing","completed poem","part of a book"],"cp":"07de8"},{"k":"弁","g":5,"on":["ベン","ヘン"],"kun":["かんむり","わきま.える","わ.ける","はなびら","あらそ.う"],"m":["valve","petal","braid","speech","dialect","discrimination","dispose of","distinguish","conical cap"],"cp":"05f01"},{"k":"保","g":5,"on":["ホ","ホウ"],"kun":["たも.つ"],"m":["protect","guarantee","keep","preserve","sustain","support"],"cp":"04fdd"},{"k":"墓","g":5,"on":["ボ"],"kun":["はか"],"m":["grave","tomb"],"cp":"05893"},{"k":"報","g":5,"on":["ホウ"],"kun":["むく.いる"],"m":["report","news","reward","retribution"],"cp":"05831"},{"k":"豊","g":5,"on":["ホウ","ブ"],"kun":["ゆた.か","とよ"],"m":["bountiful","excellent","rich"],"cp":"08c4a"},{"k":"防","g":5,"on":["ボウ"],"kun":["ふせ.ぐ"],"m":["ward off","defend","protect","resist"],"cp":"09632"},{"k":"貿","g":5,"on":["ボウ"],"kun":[],"m":["trade","exchange"],"cp":"08cbf"},{"k":"暴","g":5,"on":["ボウ","バク"],"kun":["あば.く","あば.れる"],"m":["outburst","rave","fret","force","violence","cruelty","outrage"],"cp":"066b4"},{"k":"脈","g":5,"on":["ミャク"],"kun":["すじ"],"m":["vein","pulse","hope"],"cp":"08108"},{"k":"務","g":5,"on":["ム"],"kun":["つと.める"],"m":["task","duties"],"cp":"052d9"},{"k":"夢","g":5,"on":["ム","ボウ"],"kun":["ゆめ","ゆめ.みる","くら.い"],"m":["dream","vision","illusion"],"cp":"05922"},{"k":"迷","g":5,"on":["メイ"],"kun":["まよ.う"],"m":["astray","be perplexed","in doubt","lost","err","illusion"],"cp":"08ff7"},{"k":"綿","g":5,"on":["メン"],"kun":["わた"],"m":["cotton"],"cp":"07dbf"},{"k":"輸","g":5,"on":["ユ","シュ"],"kun":[],"m":["transport","send","be inferior"],"cp":"08f38"},{"k":"余","g":5,"on":["ヨ"],"kun":["あま.る","あま.り","あま.す","あんま.り"],"m":["too much","myself","surplus","other","remainder"],"cp":"04f59"},{"k":"容","g":5,"on":["ヨウ"],"kun":["い.れる"],"m":["contain","form","looks"],"cp":"05bb9"},{"k":"略","g":5,"on":["リャク"],"kun":["ほぼ","はぶ.く","おか.す","おさ.める","はかりごと","はか.る"],"m":["abbreviation","omission","outline","shorten","capture","plunder"],"cp":"07565"},{"k":"留","g":5,"on":["リュウ","ル"],"kun":["と.める","と.まる","とど.める","とど.まる","るうぶる"],"m":["detain","fasten","halt","stop"],"cp":"07559"},{"k":"領","g":5,"on":["リョウ"],"kun":["えり"],"m":["jurisdiction","dominion","territory","fief","reign"],"cp":"09818"},{"k":"歴","g":5,"on":["レキ","レッキ"],"kun":[],"m":["curriculum","continuation","passage of time"],"cp":"06b74"},{"k":"胃","g":6,"on":["イ"],"kun":[],"m":["stomach","paunch","crop","craw"],"cp":"080c3"},{"k":"異","g":6,"on":["イ"],"kun":["こと","こと.なる","け"],"m":["uncommon","different","queerness","strangeness","wonderful","curious","unusual"],"cp":"07570"},{"k":"遺","g":6,"on":["イ","ユイ"],"kun":["のこ.す"],"m":["bequeath","leave behind","reserve"],"cp":"0907a"},{"k":"域","g":6,"on":["イキ"],"kun":[],"m":["range","region","limits","stage","level"],"cp":"057df"},{"k":"宇","g":6,"on":["ウ"],"kun":[],"m":["eaves","roof","house","heaven"],"cp":"05b87"},{"k":"映","g":6,"on":["エイ"],"kun":["うつ.る","うつ.す","は.える","-ば.え"],"m":["reflect","reflection","projection"],"cp":"06620"},{"k":"延","g":6,"on":["エン"],"kun":["の.びる","の.べる","の.べ","の.ばす"],"m":["prolong","stretching"],"cp":"05ef6"},{"k":"沿","g":6,"on":["エン"],"kun":["そ.う","-ぞ.い"],"m":["run alongside","follow along","run along","lie along"],"cp":"06cbf"},{"k":"恩","g":6,"on":["オン"],"kun":[],"m":["grace","kindness","goodness","favor","mercy","blessing","benefit"],"cp":"06069"},{"k":"我","g":6,"on":["ガ"],"kun":["われ","わ","わ.が-","わが-"],"m":["ego","I","selfish","our","oneself"],"cp":"06211"},{"k":"灰","g":6,"on":["カイ"],"kun":["はい"],"m":["ashes","puckery juice","cremate"],"cp":"07070"},{"k":"拡","g":6,"on":["カク","コウ"],"kun":["ひろ.がる","ひろ.げる","ひろ.める"],"m":["broaden","extend","expand","enlarge"],"cp":"062e1"},{"k":"革","g":6,"on":["カク"],"kun":["かわ"],"m":["leather","skin","reform","become serious"],"cp":"09769"},{"k":"閣","g":6,"on":["カク"],"kun":[],"m":["tower","tall building","palace"],"cp":"095a3"},{"k":"割","g":6,"on":["カツ"],"kun":["わ.る","わり","わ.り","わ.れる","さ.く"],"m":["proportion","comparatively","divide","cut","separate","split"],"cp":"05272"},{"k":"株","g":6,"on":["シュ"],"kun":["かぶ"],"m":["stocks","stump","shares","stock","counter for small plants"],"cp":"0682a"},{"k":"干","g":6,"on":["カン"],"kun":["ほ.す","ほ.し-","-ぼ.し","ひ.る"],"m":["dry","parch","ebb","recede","interfere","intercede"],"cp":"05e72"},{"k":"巻","g":6,"on":["カン","ケン"],"kun":["ま.く","まき","ま.き"],"m":["scroll","volume","book","part","roll up","wind up","tie","coil","counter for texts (or book scrolls)"],"cp":"05dfb"},{"k":"看","g":6,"on":["カン"],"kun":["み.る"],"m":["watch over","see"],"cp":"0770b"},{"k":"簡","g":6,"on":["カン","ケン"],"kun":["えら.ぶ","ふだ"],"m":["simplicity","brevity"],"cp":"07c21"},{"k":"危","g":6,"on":["キ"],"kun":["あぶ.ない","あや.うい","あや.ぶむ"],"m":["dangerous","fear","uneasy"],"cp":"05371"},{"k":"机","g":6,"on":["キ"],"kun":["つくえ"],"m":["desk","table"],"cp":"0673a"},{"k":"揮","g":6,"on":["キ"],"kun":["ふる.う"],"m":["brandish","wave","wag","swing","shake"],"cp":"063ee"},{"k":"貴","g":6,"on":["キ"],"kun":["たっと.い","とうと.い","たっと.ぶ","とうと.ぶ"],"m":["precious","value","prize","esteem","honor"],"cp":"08cb4"},{"k":"疑","g":6,"on":["ギ"],"kun":["うたが.う"],"m":["doubt","distrust","be suspicious","question"],"cp":"07591"},{"k":"吸","g":6,"on":["キュウ"],"kun":["す.う"],"m":["suck","imbibe","inhale","sip"],"cp":"05438"},{"k":"供","g":6,"on":["キョウ","ク","クウ","グ"],"kun":["そな.える","とも","-ども"],"m":["submit","offer","present","serve (meal)","accompany"],"cp":"04f9b"},{"k":"胸","g":6,"on":["キョウ"],"kun":["むね","むな-"],"m":["bosom","breast","chest","heart","feelings"],"cp":"080f8"},{"k":"郷","g":6,"on":["キョウ","ゴウ"],"kun":["さと"],"m":["home town","village","native place","district"],"cp":"090f7"},{"k":"勤","g":6,"on":["キン","ゴン"],"kun":["つと.める","-づと.め","つと.まる","いそ.しむ"],"m":["diligence","become employed","serve"],"cp":"052e4"},{"k":"筋","g":6,"on":["キン"],"kun":["すじ"],"m":["muscle","sinew","tendon","fiber","plot","plan","descent"],"cp":"07b4b"},{"k":"系","g":6,"on":["ケイ"],"kun":[],"m":["lineage","system"],"cp":"07cfb"},{"k":"敬","g":6,"on":["ケイ","キョウ"],"kun":["うやま.う"],"m":["awe","respect","honor","revere"],"cp":"0656c"},{"k":"警","g":6,"on":["ケイ"],"kun":["いまし.める"],"m":["admonish","commandment"],"cp":"08b66"},{"k":"劇","g":6,"on":["ゲキ"],"kun":[],"m":["drama","play"],"cp":"05287"},{"k":"激","g":6,"on":["ゲキ"],"kun":["はげ.しい"],"m":["violent","get excited","enraged","chafe","incite"],"cp":"06fc0"},{"k":"穴","g":6,"on":["ケツ"],"kun":["あな"],"m":["hole","aperture","slit","cave","den"],"cp":"07a74"},{"k":"券","g":6,"on":["ケン"],"kun":[],"m":["ticket"],"cp":"05238"},{"k":"絹","g":6,"on":["ケン"],"kun":["きぬ"],"m":["silk"],"cp":"07d79"},{"k":"権","g":6,"on":["ケン","ゴン"],"kun":["おもり","かり","はか.る"],"m":["authority","power","rights"],"cp":"06a29"},{"k":"憲","g":6,"on":["ケン"],"kun":[],"m":["constitution","law"],"cp":"061b2"},{"k":"源","g":6,"on":["ゲン"],"kun":["みなもと"],"m":["source","origin"],"cp":"06e90"},{"k":"厳","g":6,"on":["ゲン","ゴン"],"kun":["おごそ.か","きび.しい","いか.めしい","いつくし"],"m":["stern","strictness","severity","rigidity"],"cp":"053b3"},{"k":"己","g":6,"on":["コ","キ"],"kun":["おのれ","つちのと","な"],"m":["self"],"cp":"05df1"},{"k":"呼","g":6,"on":["コ"],"kun":["よ.ぶ"],"m":["call","call out to","invite"],"cp":"0547c"},{"k":"誤","g":6,"on":["ゴ"],"kun":["あやま.る","-あやま.る"],"m":["mistake","err","do wrong","mislead"],"cp":"08aa4"},{"k":"后","g":6,"on":["コウ","ゴ"],"kun":["きさき"],"m":["empress","queen","after","behind","back","later"],"cp":"0540e"},{"k":"孝","g":6,"on":["コウ","キョウ"],"kun":[],"m":["filial piety","child's respect"],"cp":"05b5d"},{"k":"皇","g":6,"on":["コウ","オウ"],"kun":[],"m":["emperor"],"cp":"07687"},{"k":"紅","g":6,"on":["コウ","ク"],"kun":["べに","くれない","あか.い"],"m":["crimson","deep red"],"cp":"07d05"},{"k":"降","g":6,"on":["コウ","ゴ"],"kun":["お.りる","お.ろす","ふ.る","ふ.り","くだ.る","くだ.す"],"m":["descend","precipitate","fall","surrender"],"cp":"0964d"},{"k":"鋼","g":6,"on":["コウ"],"kun":["はがね"],"m":["steel"],"cp":"092fc"},{"k":"刻","g":6,"on":["コク"],"kun":["きざ.む","きざ.み"],"m":["engrave","cut fine","chop","hash","mince","time","carving"],"cp":"0523b"},{"k":"穀","g":6,"on":["コク"],"kun":[],"m":["cereals","grain"],"cp":"07a40"},{"k":"骨","g":6,"on":["コツ"],"kun":["ほね"],"m":["skeleton","bone","remains","frame"],"cp":"09aa8"},{"k":"困","g":6,"on":["コン"],"kun":["こま.る"],"m":["quandary","become distressed","annoyed"],"cp":"056f0"},{"k":"砂","g":6,"on":["サ","シャ"],"kun":["すな"],"m":["sand"],"cp":"07802"},{"k":"座","g":6,"on":["ザ"],"kun":["すわ.る"],"m":["squat","seat","cushion","gathering","sit"],"cp":"05ea7"},{"k":"済","g":6,"on":["サイ","セイ"],"kun":["す.む","-ず.み","-ずみ","す.まない","す.ます","-す.ます","すく.う","な.す","わたし","わた.る"],"m":["settle (debt, etc.)","relieve (burden)","finish","come to an end","excusable","need not"],"cp":"06e08"},{"k":"裁","g":6,"on":["サイ"],"kun":["た.つ","さば.く"],"m":["tailor","judge","decision","cut out (pattern)"],"cp":"088c1"},{"k":"策","g":6,"on":["サク"],"kun":[],"m":["scheme","plan","policy","step","means"],"cp":"07b56"},{"k":"冊","g":6,"on":["サツ","サク"],"kun":["ふみ"],"m":["tome","counter for books","volume"],"cp":"0518a"},{"k":"蚕","g":6,"on":["サン","テン"],"kun":["かいこ","こ"],"m":["silkworm"],"cp":"08695"},{"k":"至","g":6,"on":["シ"],"kun":["いた.る"],"m":["climax","arrive","proceed","reach","attain","result in"],"cp":"081f3"},{"k":"私","g":6,"on":["シ"],"kun":["わたくし","わたし"],"m":["private","I","me"],"cp":"079c1"},{"k":"姿","g":6,"on":["シ"],"kun":["すがた"],"m":["figure","form","shape"],"cp":"059ff"},{"k":"視","g":6,"on":["シ"],"kun":["み.る"],"m":["inspection","regard as","see","look at"],"cp":"08996"},{"k":"詞","g":6,"on":["シ"],"kun":["ことば"],"m":["part of speech","words","poetry"],"cp":"08a5e"},{"k":"誌","g":6,"on":["シ"],"kun":[],"m":["document","records"],"cp":"08a8c"},{"k":"磁","g":6,"on":["ジ"],"kun":[],"m":["magnet","porcelain"],"cp":"078c1"},{"k":"射","g":6,"on":["シャ"],"kun":["い.る","さ.す","う.つ"],"m":["shoot","shine into","onto","archery"],"cp":"05c04"},{"k":"捨","g":6,"on":["シャ"],"kun":["す.てる"],"m":["discard","throw away","abandon","resign","reject","sacrifice"],"cp":"06368"},{"k":"尺","g":6,"on":["シャク","セキ"],"kun":["さし"],"m":["shaku","Japanese foot","measure","scale","rule"],"cp":"05c3a"},{"k":"若","g":6,"on":["ジャク","ニャク","ニャ"],"kun":["わか.い","わか-","も.しくわ","も.し","も.しくは","ごと.し"],"m":["young","if","perhaps","possibly","low number","immature"],"cp":"082e5"},{"k":"樹","g":6,"on":["ジュ"],"kun":["き"],"m":["timber","trees","wood","establish","set up"],"cp":"06a39"},{"k":"収","g":6,"on":["シュウ"],"kun":["おさ.める","おさ.まる"],"m":["income","obtain","reap","pay","supply","store"],"cp":"053ce"},{"k":"宗","g":6,"on":["シュウ","ソウ"],"kun":["むね"],"m":["religion","sect","denomination","main point","origin","essence"],"cp":"05b97"},{"k":"就","g":6,"on":["シュウ","ジュ"],"kun":["つ.く","つ.ける"],"m":["concerning","settle","take position","depart","study","per"],"cp":"05c31"},{"k":"衆","g":6,"on":["シュウ","シュ"],"kun":["おお.い"],"m":["masses","great numbers","multitude","populace"],"cp":"08846"},{"k":"従","g":6,"on":["ジュウ","ショウ","ジュ"],"kun":["したが.う","したが.える","より"],"m":["accompany","obey","submit to","comply","follow","secondary","incidental","subordinate"],"cp":"05f93"},{"k":"縦","g":6,"on":["ジュウ"],"kun":["たて"],"m":["vertical","length","height","self-indulgent","wayward"],"cp":"07e26"},{"k":"縮","g":6,"on":["シュク"],"kun":["ちぢ.む","ちぢ.まる","ちぢ.める","ちぢ.れる","ちぢ.らす"],"m":["shrink","contract","shrivel","wrinkle","reduce"],"cp":"07e2e"},{"k":"熟","g":6,"on":["ジュク"],"kun":["う.れる"],"m":["mellow","ripen","mature","acquire skill"],"cp":"0719f"},{"k":"純","g":6,"on":["ジュン"],"kun":[],"m":["genuine","purity","innocence","net (profit)"],"cp":"07d14"},{"k":"処","g":6,"on":["ショ"],"kun":["ところ","-こ","お.る"],"m":["dispose","manage","deal with","sentence","condemn","act","behave","place"],"cp":"051e6"},{"k":"署","g":6,"on":["ショ"],"kun":[],"m":["signature","govt office","police station"],"cp":"07f72"},{"k":"諸","g":6,"on":["ショ"],"kun":["もろ"],"m":["various","many","several","together"],"cp":"08af8"},{"k":"除","g":6,"on":["ジョ","ジ"],"kun":["のぞ.く","-よ.け"],"m":["exclude","division (x/3)","remove","abolish","cancel","except"],"cp":"09664"},{"k":"承","g":6,"on":["ショウ","ジョウ"],"kun":["うけたまわ.る","う.ける"],"m":["acquiesce","hear","listen to","be informed","receive"],"cp":"0627f"},{"k":"将","g":6,"on":["ショウ","ソウ"],"kun":["まさ.に","はた","まさ","ひきい.る","もって"],"m":["leader","commander","general","admiral","or","and again","soon","from now on","just about"],"cp":"05c06"},{"k":"傷","g":6,"on":["ショウ"],"kun":["きず","いた.む","いた.める"],"m":["wound","hurt","injure","impair","pain","injury","cut","gash","scar","weak point"],"cp":"050b7"},{"k":"障","g":6,"on":["ショウ"],"kun":["さわ.る"],"m":["hinder","hurt","harm"],"cp":"0969c"},{"k":"蒸","g":6,"on":["ジョウ","セイ"],"kun":["む.す","む.れる","む.らす"],"m":["steam","heat","sultry","foment","get musty"],"cp":"084b8"},{"k":"針","g":6,"on":["シン"],"kun":["はり"],"m":["needle","pin","staple","stinger"],"cp":"091dd"},{"k":"仁","g":6,"on":["ジン","ニ","ニン"],"kun":[],"m":["humanity","virtue","benevolence","charity","man","kernel"],"cp":"04ec1"},{"k":"垂","g":6,"on":["スイ"],"kun":["た.れる","た.らす","た.れ","-た.れ","なんなんと.す"],"m":["droop","suspend","hang","slouch"],"cp":"05782"},{"k":"推","g":6,"on":["スイ"],"kun":["お.す"],"m":["conjecture","infer","guess","suppose","support","push (for)"],"cp":"063a8"},{"k":"寸","g":6,"on":["スン"],"kun":[],"m":["measurement","tenth of a shaku","a little","small"],"cp":"05bf8"},{"k":"盛","g":6,"on":["セイ","ジョウ"],"kun":["も.る","さか.る","さか.ん"],"m":["boom","prosper","copulate"],"cp":"076db"},{"k":"聖","g":6,"on":["セイ","ショウ"],"kun":["ひじり"],"m":["holy","saint","sage","master","priest"],"cp":"08056"},{"k":"誠","g":6,"on":["セイ"],"kun":["まこと"],"m":["sincerity","admonish","warn","prohibit","truth","fidelity"],"cp":"08aa0"},{"k":"舌","g":6,"on":["ゼツ"],"kun":["した"],"m":["tongue","reed","clapper"],"cp":"0820c"},{"k":"宣","g":6,"on":["セン"],"kun":["のたま.う"],"m":["proclaim","say","announce"],"cp":"05ba3"},{"k":"専","g":6,"on":["セン"],"kun":["もっぱ.ら"],"m":["specialty","exclusive","mainly","solely"],"cp":"05c02"},{"k":"泉","g":6,"on":["セン"],"kun":["いずみ"],"m":["spring","fountain"],"cp":"06cc9"},{"k":"洗","g":6,"on":["セン"],"kun":["あら.う"],"m":["wash","inquire into","probe"],"cp":"06d17"},{"k":"染","g":6,"on":["セン"],"kun":["そ.める","そ.まる","し.みる","し.み"],"m":["dye","color","paint","stain","print"],"cp":"067d3"},{"k":"銭","g":6,"on":["セン","ゼン"],"kun":["ぜに","すき"],"m":["coin",".01 yen","money"],"cp":"092ad"},{"k":"善","g":6,"on":["ゼン"],"kun":["よ.い","い.い","よ.く","よし.とする"],"m":["virtuous","good","goodness"],"cp":"05584"},{"k":"奏","g":6,"on":["ソウ"],"kun":["かな.でる"],"m":["play music","speak to a ruler","complete"],"cp":"0594f"},{"k":"窓","g":6,"on":["ソウ","ス"],"kun":["まど","てんまど","けむだし"],"m":["window","pane"],"cp":"07a93"},{"k":"創","g":6,"on":["ソウ","ショウ"],"kun":["つく.る","はじ.める","きず","けず.しける"],"m":["genesis","wound","injury","hurt","start","originate"],"cp":"05275"},{"k":"装","g":6,"on":["ソウ","ショウ"],"kun":["よそお.う","よそお.い"],"m":["attire","dress","pretend","disguise","profess"],"cp":"088c5"},{"k":"層","g":6,"on":["ソウ"],"kun":[],"m":["stratum","social class","layer","story","floor"],"cp":"05c64"},{"k":"操","g":6,"on":["ソウ","サン"],"kun":["みさお","あやつ.る"],"m":["maneuver","manipulate","operate","steer","chastity","virginity","fidelity"],"cp":"064cd"},{"k":"蔵","g":6,"on":["ゾウ","ソウ"],"kun":["くら","おさ.める","かく.れる"],"m":["storehouse","hide","own","have","possess"],"cp":"08535"},{"k":"臓","g":6,"on":["ゾウ"],"kun":["はらわた"],"m":["entrails","viscera","bowels"],"cp":"081d3"},{"k":"存","g":6,"on":["ソン","ゾン"],"kun":["ながら.える","あ.る","たも.つ","と.う"],"m":["exist","suppose","be aware of","believe","feel"],"cp":"05b58"},{"k":"尊","g":6,"on":["ソン"],"kun":["たっと.い","とうと.い","たっと.ぶ","とうと.ぶ"],"m":["revered","valuable","precious","noble","exalted"],"cp":"05c0a"},{"k":"退","g":6,"on":["タイ"],"kun":["しりぞ.く","しりぞ.ける","ひ.く","の.く","の.ける","ど.く"],"m":["retreat","withdraw","retire","resign","repel","expel","reject"],"cp":"09000"},{"k":"宅","g":6,"on":["タク"],"kun":[],"m":["home","house","residence","our house","my husband"],"cp":"05b85"},{"k":"担","g":6,"on":["タン"],"kun":["かつ.ぐ","にな.う"],"m":["shouldering","carry","raise","bear"],"cp":"062c5"},{"k":"探","g":6,"on":["タン"],"kun":["さぐ.る","さが.す"],"m":["grope","search","look for"],"cp":"063a2"},{"k":"誕","g":6,"on":["タン"],"kun":[],"m":["nativity","be born","declension","lie","be arbitrary"],"cp":"08a95"},{"k":"段","g":6,"on":["ダン","タン"],"kun":[],"m":["grade","steps","stairs"],"cp":"06bb5"},{"k":"暖","g":6,"on":["ダン","ノン"],"kun":["あたた.か","あたた.かい","あたた.まる","あたた.める"],"m":["warmth"],"cp":"06696"},{"k":"値","g":6,"on":["チ"],"kun":["ね","あたい"],"m":["price","cost","value"],"cp":"05024"},{"k":"宙","g":6,"on":["チュウ"],"kun":[],"m":["mid-air","air","space","sky","memorization","interval of time"],"cp":"05b99"},{"k":"忠","g":6,"on":["チュウ"],"kun":[],"m":["loyalty","fidelity","faithfulness"],"cp":"05fe0"},{"k":"著","g":6,"on":["チョ","チャク"],"kun":["あらわ.す","いちじる.しい"],"m":["renowned","publish","write","remarkable","phenomenal","put on","don","wear","arrival","finish (race)","counter for suits of clothing","literary work"],"cp":"08457"},{"k":"庁","g":6,"on":["チョウ","テイ"],"kun":["やくしょ"],"m":["government office"],"cp":"05e81"},{"k":"頂","g":6,"on":["チョウ"],"kun":["いただ.く","いただき"],"m":["place on the head","receive","top of head","top","summit","peak"],"cp":"09802"},{"k":"腸","g":6,"on":["チョウ"],"kun":["はらわた","わた"],"m":["intestines","guts","bowels","viscera"],"cp":"08178"},{"k":"潮","g":6,"on":["チョウ"],"kun":["しお","うしお"],"m":["tide","salt water","opportunity"],"cp":"06f6e"},{"k":"賃","g":6,"on":["チン"],"kun":[],"m":["fare","fee","hire","rent","wages","charge"],"cp":"08cc3"},{"k":"痛","g":6,"on":["ツウ"],"kun":["いた.い","いた.む","いた.ましい","いた.める"],"m":["pain","hurt","damage","bruise"],"cp":"075db"},{"k":"敵","g":6,"on":["テキ"],"kun":["かたき","あだ","かな.う"],"m":["enemy","foe","opponent"],"cp":"06575"},{"k":"展","g":6,"on":["テン"],"kun":[],"m":["unfold","expand"],"cp":"05c55"},{"k":"討","g":6,"on":["トウ"],"kun":["う.つ"],"m":["chastise","attack","defeat","destroy","conquer"],"cp":"08a0e"},{"k":"党","g":6,"on":["トウ"],"kun":["なかま","むら"],"m":["party","faction","clique"],"cp":"0515a"},{"k":"糖","g":6,"on":["トウ"],"kun":[],"m":["sugar"],"cp":"07cd6"},{"k":"届","g":6,"on":["カイ"],"kun":["とど.ける","-とど.け","とど.く"],"m":["deliver","reach","arrive","report","notify","forward"],"cp":"05c4a"},{"k":"難","g":6,"on":["ナン"],"kun":["かた.い","-がた.い","むずか.しい","むづか.しい","むつか.しい","-にく.い"],"m":["difficult","impossible","trouble","accident","defect"],"cp":"096e3"},{"k":"乳","g":6,"on":["ニュウ"],"kun":["ちち","ち"],"m":["milk","breasts"],"cp":"04e73"},{"k":"認","g":6,"on":["ニン"],"kun":["みと.める","したた.める"],"m":["acknowledge","witness","discern","recognize","appreciate","believe"],"cp":"08a8d"},{"k":"納","g":6,"on":["ノウ","ナッ","ナ","ナン","トウ"],"kun":["おさ.める","-おさ.める","おさ.まる"],"m":["settlement","obtain","reap","pay","supply","store"],"cp":"07d0d"},{"k":"脳","g":6,"on":["ノウ","ドウ"],"kun":["のうずる"],"m":["brain","memory"],"cp":"08133"},{"k":"派","g":6,"on":["ハ"],"kun":[],"m":["faction","group","party","clique","sect","school"],"cp":"06d3e"},{"k":"拝","g":6,"on":["ハイ"],"kun":["おが.む","おろが.む"],"m":["worship","adore","pray to"],"cp":"062dd"},{"k":"背","g":6,"on":["ハイ"],"kun":["せ","せい","そむ.く","そむ.ける"],"m":["stature","height","back","behind","disobey","defy","go back on","rebel"],"cp":"080cc"},{"k":"肺","g":6,"on":["ハイ"],"kun":[],"m":["lungs"],"cp":"080ba"},{"k":"俳","g":6,"on":["ハイ"],"kun":[],"m":["haiku","actor"],"cp":"04ff3"},{"k":"班","g":6,"on":["ハン"],"kun":[],"m":["squad","corps","unit","group"],"cp":"073ed"},{"k":"晩","g":6,"on":["バン"],"kun":[],"m":["nightfall","night"],"cp":"06669"},{"k":"否","g":6,"on":["ヒ"],"kun":["いな","いや"],"m":["negate","no","noes","refuse","decline","deny"],"cp":"05426"},{"k":"批","g":6,"on":["ヒ"],"kun":[],"m":["criticism","strike"],"cp":"06279"},{"k":"秘","g":6,"on":["ヒ"],"kun":["ひ.める","ひそ.か","かく.す"],"m":["secret","conceal"],"cp":"079d8"},{"k":"俵","g":6,"on":["ヒョウ"],"kun":["たわら"],"m":["bag","bale","sack","counter for bags"],"cp":"04ff5"},{"k":"腹","g":6,"on":["フク"],"kun":["はら"],"m":["abdomen","belly","stomach"],"cp":"08179"},{"k":"奮","g":6,"on":["フン"],"kun":["ふる.う"],"m":["stirred up","be invigorated","flourish"],"cp":"0596e"},{"k":"並","g":6,"on":["ヘイ","ホウ"],"kun":["な.み","なみ","なら.べる","なら.ぶ","なら.びに"],"m":["row","and","besides","as well as","line up","rank with","rival","equal"],"cp":"04e26"},{"k":"陛","g":6,"on":["ヘイ"],"kun":[],"m":["highness","steps (of throne)"],"cp":"0965b"},{"k":"閉","g":6,"on":["ヘイ"],"kun":["と.じる","と.ざす","し.める","し.まる","た.てる"],"m":["closed","shut"],"cp":"09589"},{"k":"片","g":6,"on":["ヘン"],"kun":["かた-","かた"],"m":["one-sided","leaf","sheet","right-side kata radical (no. 91)"],"cp":"07247"},{"k":"補","g":6,"on":["ホ"],"kun":["おぎな.う"],"m":["supplement","supply","make good","offset","compensate","assistant","learner"],"cp":"088dc"},{"k":"暮","g":6,"on":["ボ"],"kun":["く.れる","く.らす"],"m":["evening","twilight","season's end","livelihood","make a living","spend time"],"cp":"066ae"},{"k":"宝","g":6,"on":["ホウ"],"kun":["たから"],"m":["treasure","wealth","valuables"],"cp":"05b9d"},{"k":"訪","g":6,"on":["ホウ"],"kun":["おとず.れる","たず.ねる","と.う"],"m":["call on","visit","look up","offer sympathy"],"cp":"08a2a"},{"k":"亡","g":6,"on":["ボウ","モウ"],"kun":["な.い","な.き-","ほろ.びる","ほろ.ぶ","ほろ.ぼす"],"m":["deceased","the late","dying","perish"],"cp":"04ea1"},{"k":"忘","g":6,"on":["ボウ"],"kun":["わす.れる"],"m":["forget"],"cp":"05fd8"},{"k":"棒","g":6,"on":["ボウ"],"kun":[],"m":["rod","stick","cane","pole","club","line"],"cp":"068d2"},{"k":"枚","g":6,"on":["マイ","バイ"],"kun":[],"m":["sheet of...","counter for flat thin objects or sheets"],"cp":"0679a"},{"k":"幕","g":6,"on":["マク","バク"],"kun":["とばり"],"m":["curtain","bunting","act of play"],"cp":"05e55"},{"k":"密","g":6,"on":["ミツ"],"kun":["ひそ.か"],"m":["secrecy","density (pop)","minuteness","carefulness"],"cp":"05bc6"},{"k":"盟","g":6,"on":["メイ"],"kun":[],"m":["alliance","oath"],"cp":"076df"},{"k":"模","g":6,"on":["モ","ボ"],"kun":[],"m":["imitation","copy","mock"],"cp":"06a21"},{"k":"訳","g":6,"on":["ヤク"],"kun":["わけ"],"m":["translate","reason","circumstance","case"],"cp":"08a33"},{"k":"郵","g":6,"on":["ユウ"],"kun":[],"m":["mail","stagecoach stop"],"cp":"090f5"},{"k":"優","g":6,"on":["ユウ","ウ"],"kun":["やさ.しい","すぐ.れる","まさ.る"],"m":["tenderness","excel","surpass","actor","superiority","gentleness"],"cp":"0512a"},{"k":"預","g":6,"on":["ヨ"],"kun":["あず.ける","あず.かる"],"m":["deposit","custody","leave with","entrust to"],"cp":"09810"},{"k":"幼","g":6,"on":["ヨウ"],"kun":["おさな.い"],"m":["infancy","childhood"],"cp":"05e7c"},{"k":"欲","g":6,"on":["ヨク"],"kun":["ほっ.する","ほ.しい"],"m":["longing","covetousness","greed","passion","desire","craving"],"cp":"06b32"},{"k":"翌","g":6,"on":["ヨク"],"kun":[],"m":["the following","next"],"cp":"07fcc"},{"k":"乱","g":6,"on":["ラン","ロン"],"kun":["みだ.れる","みだ.る","みだ.す","みだ","おさ.める","わた.る"],"m":["riot","war","disorder","disturb"],"cp":"04e71"},{"k":"卵","g":6,"on":["ラン"],"kun":["たまご"],"m":["egg","ovum","spawn","roe"],"cp":"05375"},{"k":"覧","g":6,"on":["ラン"],"kun":["み.る"],"m":["perusal","see"],"cp":"089a7"},{"k":"裏","g":6,"on":["リ"],"kun":["うら"],"m":["back","amidst","in","reverse","inside","palm","sole","rear","lining","wrong side"],"cp":"088cf"},{"k":"律","g":6,"on":["リツ","リチ","レツ"],"kun":[],"m":["rhythm","law","regulation","gauge","control"],"cp":"05f8b"},{"k":"臨","g":6,"on":["リン"],"kun":["のぞ.む"],"m":["look to","face","meet","confront","attend","call on"],"cp":"081e8"},{"k":"朗","g":6,"on":["ロウ"],"kun":["ほが.らか","あき.らか"],"m":["melodious","clear","bright","serene","cheerful"],"cp":"06717"},{"k":"論","g":6,"on":["ロン"],"kun":["あげつら.う"],"m":["argument","discourse"],"cp":"08ad6"}];
 
-  // JSONをfetchで読み込む
-  fetch('./kanji_learning_data.json')
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    })
-    .then(data => {
-      kanjiData = data;
-      initApp();
-    })
-    .catch(err => {
-      document.getElementById('load-msg').textContent =
-        '❌ データの読み込みに失敗しました。kanji_learning_data.json が同じフォルダにあるか確認してください。';
-      console.error(err);
-    });
+// ===== STATE =====
+let currentGrade = 0;
+let searchQuery = '';
+let selectedKanji = null;
+let animationState = {
+  strokes: [],
+  currentStroke: -1,
+  isPlaying: false,
+  timer: null,
+  speed: 1.0
+};
 
-  function initApp() {
-    document.getElementById('load-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    buildGradeBar();
-    loadGrade('1');
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  renderKanjiGrid();
+});
+
+// ===== FILTER =====
+function selectGrade(grade) {
+  currentGrade = grade;
+  document.querySelectorAll('.grade-tab').forEach(t => {
+    t.classList.toggle('active', parseInt(t.dataset.grade) === grade);
+  });
+  filterKanji();
+}
+
+function filterKanji() {
+  searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+  renderKanjiGrid();
+}
+
+function getFilteredKanji() {
+  let list = KANJI_DATA;
+  if (currentGrade > 0) list = list.filter(k => k.g === currentGrade);
+  if (searchQuery) {
+    list = list.filter(k =>
+      k.k.includes(searchQuery) ||
+      k.m.some(m => m.toLowerCase().includes(searchQuery)) ||
+      k.on.some(r => r.includes(searchQuery)) ||
+      k.kun.some(r => r.includes(searchQuery))
+    );
   }
+  return list;
+}
 
-  function buildGradeBar() {
-    const bar = document.getElementById('grade-bar');
-    const grades = Object.keys(kanjiData.grades);
-    const labels = {'1':'1年生','2':'2年生','3':'3年生','4':'4年生','5':'5年生','6':'6年生'};
-    bar.innerHTML = grades.map(g =>
-      `<button class="grade-btn ${g==='1'?'active':''}" onclick="loadGrade('${g}')" data-grade="${g}">
-        ${labels[g] || g+'年生'}
-      </button>`
-    ).join('');
-  }
+// ===== RENDER GRID =====
+function renderKanjiGrid() {
+  const grid = document.getElementById('kanjiGrid');
+  const list = getFilteredKanji();
+  document.getElementById('kanjiCount').textContent = list.length + ' 字';
+  grid.innerHTML = '';
+  list.forEach(k => {
+    const card = document.createElement('div');
+    card.className = 'kanji-card' + (selectedKanji && selectedKanji.k === k.k ? ' selected' : '');
+    card.title = k.m.join(', ');
+    card.textContent = k.k;
+    card.addEventListener('click', () => selectKanji(k));
+    grid.appendChild(card);
+  });
+}
 
-  function loadGrade(grade) {
-    currentGrade = grade;
-    currentIndex = 0;
-    // ボタン更新
-    document.querySelectorAll('.grade-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.grade === grade);
-    });
-    const list = kanjiData.grades[grade];
-    document.getElementById('list-title').textContent = `${grade}年生の漢字（${list.length}字）`;
-    buildGrid(list);
-    showKanji(0);
-  }
+// ===== SELECT KANJI =====
+function selectKanji(kanji) {
+  selectedKanji = kanji;
+  renderKanjiGrid();
+  loadKanjiAnimation(kanji);
+}
 
-  function buildGrid(list) {
-    const grid = document.getElementById('kanji-grid');
-    grid.innerHTML = list.map((item, i) =>
-      `<div class="kanji-chip ${i===0?'active':''}" onclick="showKanji(${i})" data-index="${i}" title="${item.kanji}">
-        ${item.kanji}
-      </div>`
-    ).join('');
-  }
+// ===== LOAD ANIMATION =====
+async function loadKanjiAnimation(kanji) {
+  const content = document.getElementById('mainContent');
+  content.innerHTML = `
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <span>${kanji.k} の書き順データを読み込み中…</span>
+    </div>
+  `;
 
-  function showKanji(index) {
-    const list = kanjiData.grades[currentGrade];
-    if (index < 0 || index >= list.length) return;
-    currentIndex = index;
-
-    // グリッド更新
-    document.querySelectorAll('.kanji-chip').forEach(c => {
-      c.classList.toggle('active', parseInt(c.dataset.index) === index);
-    });
-
-    // スクロールして見えるように
-    const activeChip = document.querySelector('.kanji-chip.active');
-    if (activeChip) activeChip.scrollIntoView({ block: 'nearest' });
-
-    const item = list[index];
-
-    // 読み方・意味表示
-    const onyomi  = item.onyomi.join('・') || '―';
-    const kunyomi = item.kunyomi.map(k => k.replace(/[-\.]/g, '')).join('・') || '―';
-    const meaning = item.meanings.slice(0, 3).join(', ') || '―';
-
-    document.getElementById('kanji-info').innerHTML = `
-      <div class="reading"><span>音</span>${onyomi}</div>
-      <div class="reading"><span>訓</span>${kunyomi}</div>
-      <div class="meaning">${meaning}</div>
+  try {
+    const url = `https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/${kanji.cp}.svg`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('SVG not found');
+    const svgText = await resp.text();
+    renderKanjiPanel(kanji, svgText);
+  } catch (e) {
+    content.innerHTML = `
+      <div class="kanji-title-row">
+        <div class="kanji-display">${kanji.k}</div>
+        <span class="grade-badge">${kanji.g}年</span>
+      </div>
+      ${buildReadingsBox(kanji)}
+      <div class="animation-wrap">
+        <div class="error-msg">
+          ⚠ KanjiVG のデータが見つかりませんでした。<br>
+          (${kanji.cp}.svg)<br>
+          <small>ネットワーク接続を確認してください。</small>
+        </div>
+      </div>
     `;
+  }
+}
 
-    // カウンター
-    document.getElementById('counter').innerHTML =
-      `<strong>${index + 1}</strong> / ${list.length}`;
+// ===== BUILD READINGS BOX =====
+function buildReadingsBox(kanji) {
+  const onTags = kanji.on.map(r => `<span class="reading-tag onyomi">${r}</span>`).join('');
+  const kunTags = kanji.kun.map(r => `<span class="reading-tag kunyomi">${r}</span>`).join('');
+  const mTags = kanji.m.map(r => `<span class="reading-tag meaning">${r}</span>`).join('');
+  return `
+    <div class="readings-box">
+      <div class="reading-group">
+        <div class="reading-label">音読み</div>
+        <div class="reading-tags">${onTags || '<span style="color:#aaa;font-size:13px;">—</span>'}</div>
+      </div>
+      <div class="reading-group">
+        <div class="reading-label">訓読み</div>
+        <div class="reading-tags">${kunTags || '<span style="color:#aaa;font-size:13px;">—</span>'}</div>
+      </div>
+      <div class="reading-group">
+        <div class="reading-label">意味 (英語)</div>
+        <div class="reading-tags">${mTags || '<span style="color:#aaa;font-size:13px;">—</span>'}</div>
+      </div>
+    </div>
+  `;
+}
 
-    // Hanzi Writer 初期化
-    const container = document.getElementById('kanji-writer');
-    container.innerHTML = '';
-    const speed = parseFloat(document.getElementById('speed-select').value);
+// ===== RENDER PANEL =====
+function renderKanjiPanel(kanji, svgText) {
+  // Parse SVG strokes
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+  const allPaths = Array.from(svgDoc.querySelectorAll('path'));
+  
+  // Filter stroke paths (have id like kvg:XXXXX-s1)
+  const strokePaths = allPaths.filter(p => {
+    const id = p.getAttribute('id') || '';
+    return id.match(/kvg:[0-9a-f]+-s\d+$/);
+  });
+  
+  if (strokePaths.length === 0) {
+    // Fallback: use all paths with d attribute
+    const allD = allPaths.filter(p => p.getAttribute('d'));
+    strokePaths.push(...allD);
+  }
 
-    try {
-      writer = HanziWriter.create('kanji-writer', item.kanji, {
-        width: 200,
-        height: 200,
-        padding: 10,
-        strokeColor: '#2c1810',
-        radicalColor: '#c0392b',
-        strokeAnimationSpeed: speed,
-        delayBetweenStrokes: 300,
-        showCharacter: true,
-        showOutline: true,
-        outlineColor: '#c5b89a',
-      });
-      writer.animateCharacter();
-    } catch(e) {
-      container.innerHTML = `<div style="font-size:100px;font-family:'Shippori Mincho',serif;color:#2c1810;line-height:200px;width:200px;text-align:center">${item.kanji}</div>`;
+  const numStrokes = strokePaths.length;
+
+  // Build stroke dots
+  let dotsHtml = '';
+  for (let i = 0; i < numStrokes; i++) {
+    dotsHtml += `<div class="stroke-dot" id="dot_${i}">${i+1}</div>`;
+  }
+
+  const content = document.getElementById('mainContent');
+  content.innerHTML = `
+    <div class="kanji-title-row">
+      <div class="kanji-display">${kanji.k}</div>
+      <span class="grade-badge">${kanji.g}年生</span>
+    </div>
+    ${buildReadingsBox(kanji)}
+    <div class="animation-wrap">
+      <div class="animation-header">
+        <h3>✍ 書き順アニメーション</h3>
+        <div class="stroke-counter" id="strokeCounter">0 / ${numStrokes} 画</div>
+      </div>
+      <div class="svg-container">
+        <svg id="kanjiSvgDisplay" viewBox="0 0 109 109" xmlns="http://www.w3.org/2000/svg">
+        </svg>
+      </div>
+      <div class="stroke-progress" id="strokeProgress">${dotsHtml}</div>
+      <div class="controls">
+        <button class="btn btn-primary" id="playBtn" onclick="playAnimation()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+          </svg>
+          再生
+        </button>
+        <button class="btn btn-secondary" id="pauseBtn" onclick="pauseAnimation()" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M6 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5z"/>
+          </svg>
+          一時停止
+        </button>
+        <button class="btn btn-secondary" onclick="resetAnimation()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+          </svg>
+          リセット
+        </button>
+        <div class="speed-control">
+          <span>速度:</span>
+          <select class="speed-select" id="speedSelect" onchange="changeSpeed()">
+            <option value="2">遅い (×0.5)</option>
+            <option value="1" selected>普通 (×1)</option>
+            <option value="0.6">速い (×1.7)</option>
+            <option value="0.35">とても速い (×3)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Store strokes
+  animationState.strokes = strokePaths.map(p => p.getAttribute('d'));
+  animationState.currentStroke = -1;
+  animationState.isPlaying = false;
+  animationState.speed = 1.0;
+  
+  // Auto-play
+  setTimeout(() => playAnimation(), 400);
+}
+
+// ===== ANIMATION ENGINE =====
+function getStrokeDuration() {
+  const sel = document.getElementById('speedSelect');
+  return sel ? parseFloat(sel.value) * 1000 : 1000;
+}
+
+function changeSpeed() {
+  if (animationState.isPlaying) {
+    pauseAnimation();
+    playAnimation();
+  }
+}
+
+function playAnimation() {
+  if (animationState.isPlaying) return;
+  if (animationState.currentStroke >= animationState.strokes.length - 1) {
+    resetAnimation();
+    return;
+  }
+  animationState.isPlaying = true;
+  document.getElementById('playBtn').disabled = true;
+  document.getElementById('pauseBtn').disabled = false;
+  playNextStroke();
+}
+
+function pauseAnimation() {
+  animationState.isPlaying = false;
+  clearTimeout(animationState.timer);
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('pauseBtn').disabled = true;
+}
+
+function resetAnimation() {
+  pauseAnimation();
+  animationState.currentStroke = -1;
+  const svg = document.getElementById('kanjiSvgDisplay');
+  if (svg) svg.innerHTML = '';
+  // reset dots
+  document.querySelectorAll('.stroke-dot').forEach((d, i) => {
+    d.className = 'stroke-dot';
+    d.style.opacity = '';
+  });
+  document.getElementById('strokeCounter').textContent = `0 / ${animationState.strokes.length} 画`;
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('pauseBtn').disabled = true;
+}
+
+function playNextStroke() {
+  if (!animationState.isPlaying) return;
+  const strokes = animationState.strokes;
+  const nextIdx = animationState.currentStroke + 1;
+  if (nextIdx >= strokes.length) {
+    // Done
+    animationState.isPlaying = false;
+    animationState.currentStroke = strokes.length - 1;
+    document.getElementById('playBtn').disabled = false;
+    document.getElementById('pauseBtn').disabled = true;
+    return;
+  }
+  animationState.currentStroke = nextIdx;
+  drawStroke(nextIdx, strokes[nextIdx]);
+  updateStrokeUI(nextIdx);
+  const duration = getStrokeDuration();
+  animationState.timer = setTimeout(() => playNextStroke(), duration);
+}
+
+function drawStroke(index, pathData) {
+  const svg = document.getElementById('kanjiSvgDisplay');
+  if (!svg) return;
+
+  // Add guide strokes (all previous in light gray)
+  // New stroke: animate with dashoffset
+  const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  pathEl.setAttribute('d', pathData);
+  pathEl.setAttribute('fill', 'none');
+  pathEl.setAttribute('stroke', '#1d4ed8');
+  pathEl.setAttribute('stroke-width', '3.5');
+  pathEl.setAttribute('stroke-linecap', 'round');
+  pathEl.setAttribute('stroke-linejoin', 'round');
+  pathEl.setAttribute('id', 'stroke_' + index);
+  
+  // Get path length for animation
+  svg.appendChild(pathEl);
+  const length = pathEl.getTotalLength ? pathEl.getTotalLength() : 200;
+  
+  pathEl.style.strokeDasharray = length;
+  pathEl.style.strokeDashoffset = length;
+  
+  // Animate
+  const duration = getStrokeDuration() * 0.85;
+  const startTime = performance.now();
+  
+  function animate(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 2); // ease out
+    pathEl.style.strokeDashoffset = length * (1 - eased);
+    
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      pathEl.style.strokeDashoffset = 0;
+      // Fade to final color
+      pathEl.style.transition = 'stroke 0.3s';
+      pathEl.style.stroke = '#1e40af';
     }
   }
+  requestAnimationFrame(animate);
 
-  function playAnimation() {
-    if (!writer) return;
-    const speed = parseFloat(document.getElementById('speed-select').value);
-    writer.updateColor('strokeColor', '#2c1810');
-    writer.animateCharacter({ strokeAnimationSpeed: speed });
+  // Add stroke number label at start of stroke
+  const allStrokes = animationState.strokes;
+  // Dim previous strokes slightly
+  for (let i = 0; i < index; i++) {
+    const prev = svg.querySelector('#stroke_' + i);
+    if (prev) {
+      prev.style.stroke = '#93c5fd';
+      prev.style.strokeWidth = '3';
+    }
   }
+}
 
-  function resetWriter() {
-    if (!writer) return;
-    writer.cancelAnimation();
-    writer.showCharacter();
-  }
-
-  function navigate(dir) {
-    const list = kanjiData.grades[currentGrade];
-    const next = currentIndex + dir;
-    if (next >= 0 && next < list.length) showKanji(next);
-  }
-
-  // キーボード操作
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight') navigate(1);
-    if (e.key === 'ArrowLeft') navigate(-1);
-    if (e.key === ' ') { e.preventDefault(); playAnimation(); }
+function updateStrokeUI(index) {
+  const total = animationState.strokes.length;
+  document.getElementById('strokeCounter').textContent = `${index + 1} / ${total} 画`;
+  
+  document.querySelectorAll('.stroke-dot').forEach((d, i) => {
+    if (i < index) d.className = 'stroke-dot done';
+    else if (i === index) d.className = 'stroke-dot current';
+    else d.className = 'stroke-dot';
   });
+  
+  // Scroll current dot into view
+  const currentDot = document.getElementById('dot_' + index);
+  if (currentDot) currentDot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
 </script>
 </body>
 </html>
