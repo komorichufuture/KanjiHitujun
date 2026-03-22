@@ -538,17 +538,27 @@
   .wrong-yours { color: var(--red); font-size: 12px; }
 
   @media (max-width: 680px) {
-    /* ─ 全体レイアウト ─ */
-    .main-layout, #quizView { flex-direction: column; height: auto; }
+    /* ─ 書き順タブ: 縦並びにするが高さは画面内に収める ─ */
+    .main-layout {
+      flex-direction: column;
+      height: calc(100vh - 106px); /* デスクトップと同じ高さ制約を維持 */
+      overflow: hidden;
+    }
 
-    /* ─ 書き順サイドバー ─ */
+    /* ─ 書き順サイドバー: 固定高さでグリッドをスクロール ─ */
     .sidebar {
-      width: 100%; min-width: unset;
-      height: auto;
+      width: 100%;
+      min-width: unset;
+      height: 200px;       /* 漢字グリッドをこの高さに収める */
+      flex-shrink: 0;      /* アニメエリアを圧迫しない */
       border-right: none;
       border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
+      overflow: hidden;    /* kanji-grid が内部でスクロール */
+      padding: 0;
     }
+
+    /* ─ クイズタブ: 高さautoで設定ボタンを全表示 ─ */
+    #quizView { flex-direction: column; height: auto; }
 
     /* ─ クイズ設定サイドバー ─
        高さをautoにして全項目を表示。横並びレイアウトに変更。 */
