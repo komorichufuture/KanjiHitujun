@@ -1213,53 +1213,64 @@ function generateReadingQuestion(pool) {
  * 書き問題: 読みから漢字を選ぶ。同読みの漢字は選択肢に含めない。
  */
 function generateWritingQuestion(pool) {
-  // 書き問題: 音読みから漢字を選ぶ。
-  // 同音の漢字を選択肢に入れると「複数正解」が発生するため、
-  // 4択すべて正解読みと異なる読みの漢字にする。
-  // 同音漢字は選択肢から除外し、複数正解を防ぐ。
+  // 書き問題: 音読み or 訓読みから漢字を選ぶ（50:50）。
+  // 同読みの漢字を選択肢に含めると複数正解になるため除外。
   const searchPool = pool.length >= 20 ? pool : KANJI_DATA;
 
-  // 正解漢字を選ぶ（有効な音読みを持つ漢字）
-  let correct = null, correctReading = null;
+  let correct = null, correctReading = null, readingKind = null;
   let attempts = 0;
-  while (attempts < 300) {
+  while (attempts < 400) {
     attempts++;
     const cand = randFrom(searchPool);
-    const validOn = getValidReadings(cand).on;
-    if (validOn.length === 0) continue;
-    correct = cand;
-    correctReading = validOn[0];
-    break;
+    const { on, kun } = getValidReadings(cand);
+    const useKun = Math.random() < 0.5;
+
+    if (useKun && kun.length > 0) {
+      // 訓読みを使う
+      // 短すぎる訓読み（1文字）はあいまいになりやすいため確率を下げる
+      const validKun = kun.filter(r => r.length >= 2);
+      if (validKun.length === 0) continue;
+      correct = cand;
+      correctReading = validKun[Math.floor(Math.random() * validKun.length)];
+      readingKind = 'kun';
+      break;
+    } else if (on.length > 0) {
+      // 音読みを使う
+      correct = cand;
+      correctReading = on[Math.floor(Math.random() * on.length)];
+      readingKind = 'on';
+      break;
+    }
+    // どちらも使えない場合はスキップ
   }
   if (!correct) return generateReadingQuestion(pool);
 
-  // 選択肢: 正解の表示読みと完全に異なる漢字を3つ選ぶ
-  // → otherReadings に correctReading が含まれる漢字はすべて除外
+  // 選択肢: 正解の読みと被らない漢字を3つ選ぶ（複数正解防止）
   const distractors = [];
   let tries = 0;
-  while (distractors.length < 3 && tries < 300) {
+  while (distractors.length < 3 && tries < 400) {
     tries++;
     const other = randFrom(KANJI_DATA);
     if (other.k === correct.k) continue;
     const otherReadings = getValidReadings(other).all;
-    // 正解の読みと1つでも被る漢字は除外（複数正解防止）
     if (otherReadings.includes(correctReading)) continue;
-    if (distractors.includes(other.k)) continue;
+    if (distractors.some(d => d === other.k)) continue;
     distractors.push(other.k);
   }
-
   if (distractors.length < 3) return generateReadingQuestion(pool);
 
   const options = shuffle([correct.k, ...distractors]);
+  const kindLabel = readingKind === 'kun' ? '訓読み' : '音読み';
 
   return {
     type: 'writing',
-    prompt: 'この音読みの漢字はどれ？（意味のヒントを参考に）',
+    readingKind,
+    prompt: `この${kindLabel}の漢字はどれ？（意味のヒントを参考に）`,
     display: correctReading,
     hint: correct.m.slice(0, 2).join(' / '),
     correct: correct.k,
     options,
-    explanation: `「${correctReading}」と読み、「${correct.m.slice(0,2).join('、')}」を意味する漢字は <strong>${correct.k}</strong>。`,
+    explanation: `「${correctReading}」（${kindLabel}）と読む漢字は <strong>${correct.k}</strong>。意味：${correct.m.slice(0, 2).join('、')}`,
     kanji: correct
   };
 }
@@ -1313,8 +1324,14 @@ function showQuestion(idx) {
     typeLabel      = q.readingKind === 'kun' ? '訓読み問題' : '音読み問題';
     typeBadgeClass = q.readingKind === 'kun' ? 'badge-kun' : 'badge-reading';
   } else {
-    typeLabel      = '書き問題';
-    typeBadgeClass = 'badge-writing';
+    // 書き問題でも音/訓を区別して表示
+    if (q.readingKind === 'kun') {
+      typeLabel      = '書き問題（訓）';
+      typeBadgeClass = 'badge-writing';
+    } else {
+      typeLabel      = '書き問題（音）';
+      typeBadgeClass = 'badge-writing';
+    }
   }
 
   let displayHtml = '';
