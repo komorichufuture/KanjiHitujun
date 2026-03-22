@@ -481,6 +481,7 @@
     cursor: pointer;
     font-family: inherit;
     transition: var(--transition);
+    min-width: 160px;
   }
   .next-btn:hover { background: var(--primary-dark); }
 
@@ -602,6 +603,14 @@
     .question-reading-big { font-size: 36px; }
     .options-grid { grid-template-columns: 1fr 1fr; }
     .quiz-main { padding: 14px; }
+
+    /* 次の問題ボタンをフル幅・大きなタップ領域に */
+    .next-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      min-width: unset;
+    }
   }
 
   /* さらに狭い画面（320px以下）では選択肢を1列に */
@@ -1381,6 +1390,11 @@ function answerQuestion(answer, btn) {
   feedbackExplanation.innerHTML = q.explanation;
   feedbackArea.classList.add('visible');
   updateScoreDisplay();
+
+  // スマホで「次の問題」ボタンが画面外に出ないようスクロール
+  setTimeout(() => {
+    feedbackArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
 }
 
 function nextQuestion() {
