@@ -537,11 +537,77 @@
   .wrong-yours { color: var(--red); font-size: 12px; }
 
   @media (max-width: 680px) {
+    /* ─ 全体レイアウト ─ */
     .main-layout, #quizView { flex-direction: column; height: auto; }
-    .sidebar, .quiz-sidebar { width: 100%; min-width: unset; height: 260px; border-right: none; border-bottom: 1px solid var(--border); }
+
+    /* ─ 書き順サイドバー ─ */
+    .sidebar {
+      width: 100%; min-width: unset;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+    }
+
+    /* ─ クイズ設定サイドバー ─
+       高さをautoにして全項目を表示。横並びレイアウトに変更。 */
+    .quiz-sidebar {
+      width: 100%;
+      min-width: unset;
+      height: auto;          /* 固定高さを解除 → ボタンが隠れない */
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      gap: 12px;
+      overflow-y: visible;
+    }
+
+    /* 設定グループを横並びにしてコンパクトに */
+    .quiz-sidebar > .quiz-setting-group:first-of-type {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* 問題タイプボタンを横並び */
+    .quiz-type-btn {
+      flex: 1 1 calc(33% - 6px);
+      min-width: 90px;
+      padding: 8px 6px;
+      font-size: 12px;
+      flex-direction: column;
+      gap: 2px;
+      text-align: center;
+    }
+    .quiz-type-btn span { margin-left: 0 !important; }
+
+    /* 学年・問題数を横並び */
+    .quiz-sidebar .quiz-setting-group:not(:first-of-type) {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .quiz-setting-label { min-width: 48px; }
+    .quiz-grade-select { flex: 1; }
+
+    /* 開始ボタンはフル幅で目立つように */
+    .start-quiz-btn {
+      width: 100%;
+      padding: 13px;
+      font-size: 15px;
+    }
+
+    /* ─ 問題画面 ─ */
     .question-kanji { font-size: 64px; }
     .question-reading-big { font-size: 36px; }
+    .options-grid { grid-template-columns: 1fr 1fr; }
+    .quiz-main { padding: 14px; }
+  }
+
+  /* さらに狭い画面（320px以下）では選択肢を1列に */
+  @media (max-width: 380px) {
     .options-grid { grid-template-columns: 1fr; }
+    .quiz-type-btn { flex: 1 1 100%; }
   }
 </style>
 </head>
